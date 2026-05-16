@@ -67,6 +67,7 @@ flowchart LR
 | JWT validation | Built in | Verifies signatures with RSA public key |
 | RBAC-ready users | Built in | Current roles: `VIEWER`, `SUPERUSER` |
 | Stateless API security | Built in | Spring Security with bearer-token authentication |
+| OpenAPI docs | Built in | Swagger UI plus raw OpenAPI JSON/YAML |
 | Health endpoints | Built in | Public `/api/health/ok` and test failure endpoint |
 | Email delivery | Built in | Sends OTP emails through Brevo |
 
@@ -81,6 +82,7 @@ flowchart LR
 | Security | Spring Security, stateless filter chain |
 | Token library | JJWT `0.13.0` |
 | Token algorithm | `RS512` |
+| API documentation | Springdoc OpenAPI, Swagger UI |
 | Database | MongoDB |
 | Cache | Redis |
 | Email provider | Brevo REST API |
@@ -95,6 +97,14 @@ Base URL:
 ```text
 https://api.auth.cursedshrine.co.in
 ```
+
+Docs:
+
+| UI / Spec | URL |
+| --- | --- |
+| Swagger UI | `https://api.auth.cursedshrine.co.in/swagger-ui.html` |
+| OpenAPI JSON | `https://api.auth.cursedshrine.co.in/v3/api-docs` |
+| OpenAPI YAML | `https://api.auth.cursedshrine.co.in/v3/api-docs.yaml` |
 
 Every API response is wrapped in:
 
@@ -364,6 +374,7 @@ src/main/java/com/cursed/auth
 |   `-- BrevoEmailClient.java
 |-- config
 |   |-- Beans.java
+|   |-- OpenApiConfig.java
 |   |-- RedisConfig.java
 |   `-- SecurityConfig.java
 |-- controllers

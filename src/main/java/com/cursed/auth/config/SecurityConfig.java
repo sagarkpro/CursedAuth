@@ -48,7 +48,10 @@ public class SecurityConfig {
 								"/api/auth/login",
 								"/api/auth/register",
 								"/api/auth/verify-otp",
-								"/api/health/**")
+								"/api/health/**",
+								"/v3/api-docs/**",
+								"/swagger-ui.html",
+								"/swagger-ui/**")
 						.permitAll()
 						.anyRequest().authenticated())
 				.addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
