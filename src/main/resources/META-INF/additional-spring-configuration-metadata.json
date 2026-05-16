@@ -1,0 +1,29 @@
+{
+  "properties": [
+    {
+      "name": "jwt-config.JWT_-eXPIRY",
+      "type": "java.lang.String",
+      "description": "JWT token validity duration in milliseconds."
+    },
+    {
+      "name": "jwt-config.JWT_-pUBLIC_-kEY",
+      "type": "java.lang.String",
+      "description": "PEM-encoded RSA public key used to verify JWT signatures."
+    },
+    {
+      "name": "jwt-config.JWT_-pRIVATE_-kEY",
+      "type": "java.lang.String",
+      "description": "PEM-encoded RSA private key used to sign JWT tokens."
+    },
+    {
+      "name": "brevo-config.BREVO_-uRL",
+      "type": "java.lang.String",
+      "description": "Brevo SMTP email API endpoint URL."
+    },
+    {
+      "name": "brevo-config.BREVO_API_KEY",
+      "type": "java.lang.String",
+      "description": "Brevo API key used to authenticate email API requests."
+    }
+  ]
+}
