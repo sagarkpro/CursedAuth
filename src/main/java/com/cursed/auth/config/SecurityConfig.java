@@ -48,6 +48,7 @@ public class SecurityConfig {
 								"/api/auth/login",
 								"/api/auth/register",
 								"/api/auth/verify-otp",
+								"/api/auth/test-upload",
 								"/api/health/**",
 								"/v3/api-docs/**",
 								"/swagger-ui.html",

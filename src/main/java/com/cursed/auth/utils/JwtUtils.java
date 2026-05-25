@@ -94,14 +94,21 @@ public class JwtUtils {
 
     private String generateTimedToken(User user, long life) {
         Instant now = Instant.now();
+        var claims = Map.of(
+                "role", user.getRole().name(),
+                "userId", user.getId(),
+                "userTag", user.getUsername(),
+                "displayName", user.getDisplayName());
+
+        if (StringUtils.isNotEmpty(user.getProfileImage())) {
+            claims.put("profileImage", user.getProfileImage());
+        }
 
         return Jwts.builder()
                 .subject(user.getEmail())
                 .issuedAt(Date.from(now))
                 .expiration(Date.from(now.plusMillis(life)))
-                .claims(Map.of(
-                        "role", user.getRole().name(),
-                        "userId", user.getId()))
+                .claims(claims)
                 .signWith(privateKey, Jwts.SIG.RS512)
                 .compact();
     }
