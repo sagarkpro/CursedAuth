@@ -12,7 +12,7 @@ import com.cursed.auth.dtos.response.LoginResponseDTO;
 import com.cursed.auth.dtos.response.RegisterResponseDTO;
 
 public interface UserService {
-    BaseResponseDTO<RegisterResponseDTO> registerWithImage(RegisterDTO request, MultipartFile profileImage);
+    BaseResponseDTO<String> uploadUserProfile(String email, MultipartFile profileImage);
 
     BaseResponseDTO<RegisterResponseDTO> register(RegisterDTO request);
 

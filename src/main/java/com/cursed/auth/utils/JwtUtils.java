@@ -7,6 +7,7 @@ import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.time.Instant;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
@@ -94,11 +95,11 @@ public class JwtUtils {
 
     private String generateTimedToken(User user, long life) {
         Instant now = Instant.now();
-        var claims = Map.of(
-                "role", user.getRole().name(),
-                "userId", user.getId(),
-                "userTag", user.getUsername(),
-                "displayName", user.getDisplayName());
+        var claims = new HashMap<String, String>();
+        claims.put("role", user.getRole().name());
+        claims.put("userId", user.getId());
+        claims.put("userTag", user.getUsername());
+        claims.put("displayName", user.getDisplayName());
 
         if (StringUtils.isNotEmpty(user.getProfileImage())) {
             claims.put("profileImage", user.getProfileImage());

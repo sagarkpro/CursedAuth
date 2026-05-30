@@ -13,41 +13,47 @@ import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 @Service
 public class MinIOServiceImpl implements MinIOService {
-    private final S3Client client;
-    @Value("${minio.bucket}")
-    private String bucket;
+	private final S3Client client;
+	@Value("${minio.bucket}")
+	private String bucket;
 
-    @Value("${minio.public-endpoint}")
-    private String minIOEndpoint;
+	@Value("${minio.public-endpoint}")
+	private String minIOEndpoint;
 
-    public MinIOServiceImpl(S3Client client) {
-        this.client = client;
-    }
+	public MinIOServiceImpl(S3Client client) {
+		this.client = client;
+	}
 
-    @Override
-    public String upload(MultipartFile file, String folder) throws IOException {
+	@Override
+	public String upload(MultipartFile file, String folder) throws IOException {
 
-        String fileName = UUID.randomUUID().toString().replaceAll("-", "").substring(0, 10)
-                + "-"
-                + file.getOriginalFilename();
+		String fileName = UUID.randomUUID().toString().replaceAll("-", "").substring(0, 10)
+				+ "-"
+				+ file.getOriginalFilename();
 
-        String key = folder + "/" + fileName;
+		String key = folder + "/" + fileName;
 
-        PutObjectRequest request = PutObjectRequest.builder()
-                .bucket(bucket)
-                .key(key)
-                .contentType(file.getContentType())
-                .build();
+		PutObjectRequest request = PutObjectRequest.builder()
+				.bucket(bucket)
+				.key(key)
+				.contentType(file.getContentType())
+				.build();
 
-        client.putObject(
-                request,
-                RequestBody.fromBytes(
-                        file.getBytes()));
+		client.putObject(
+				request,
+				RequestBody.fromBytes(
+						file.getBytes()));
 
-        return minIOEndpoint
-                + "/"
-                + bucket
-                + "/"
-                + key;
-    }
+		return minIOEndpoint
+				+ "/"
+				+ bucket
+				+ "/"
+				+ key;
+	}
+
+	@Override
+	public boolean delete(String filePath) {
+		// TODO Auto-generated method stub
+		throw new UnsupportedOperationException("Unimplemented method 'delete'");
+	}
 }

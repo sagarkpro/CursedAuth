@@ -8,7 +8,6 @@ import java.util.stream.Stream;
 
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.springframework.data.mongodb.core.aggregation.AccumulatorOperators.Min;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -72,6 +71,8 @@ public class UserServiceImpl implements UserService {
 								.build())
 						.build();
 			}
+
+			String imgUrl = redisService.getString(request.getEmail() + RedisKeys.USER_PROFILE_IMAGE);
 			User user = User.builder()
 					.createdAt(Instant.now())
 					.email(request.getEmail())
@@ -80,7 +81,7 @@ public class UserServiceImpl implements UserService {
 					.lastName(request.getLastName())
 					.password(passwordEncoder.encode(request.getPassword()))
 					.role(request.getRole())
-					.profileImage(request.getProfileImage())
+					.profileImage(imgUrl)
 					.build();
 
 			User res = userRepository.save(user);
@@ -90,7 +91,10 @@ public class UserServiceImpl implements UserService {
 			redisService.save(user.getEmail() + RedisKeys.OTP_VERIFICATION, objectMapper.valueToTree(
 					new RedisOTPVerification(otp, user.getEmail())));
 
-			sendEmailVerificationOtp(user, otp);
+			// TODO remove
+			if (!"debug".equals("debug"))
+				sendEmailVerificationOtp(user, otp);
+
 			return BaseResponseDTO.<RegisterResponseDTO>builder()
 					.success(true)
 					.data(RegisterResponseDTO.builder()
@@ -106,21 +110,13 @@ public class UserServiceImpl implements UserService {
 	}
 
 	@Override
-	public BaseResponseDTO<RegisterResponseDTO> registerWithImage(RegisterDTO request, MultipartFile profileImage) {
-		if (userRepository.existsByEmail(request.getEmail())) {
-			return BaseResponseDTO.<RegisterResponseDTO>builder()
-					.success(false)
-					.error(ErrorDTO.builder()
-							.message("User already exists")
-							.build())
-					.build();
-		}
+	public BaseResponseDTO<String> uploadUserProfile(String email, MultipartFile profileImage) {
 		try {
 			String imgUrl = minIOService.upload(profileImage, MinIO.USER_PROFILE_IMAGE_FOLDER);
-			request.setProfileImage(imgUrl);
-			return register(request);
+			redisService.save(email + RedisKeys.USER_PROFILE_IMAGE, imgUrl);
+			return BaseResponseDTO.<String>builder().success(true).data(imgUrl).build();
 		} catch (IOException ex) {
-			return BaseResponseDTO.<RegisterResponseDTO>builder().success(false)
+			return BaseResponseDTO.<String>builder().success(false)
 					.error(ErrorDTO.builder().message(ex.getMessage()).build()).build();
 		}
 	}
