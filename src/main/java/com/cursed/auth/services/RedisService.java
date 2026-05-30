@@ -6,17 +6,15 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
 import tools.jackson.databind.JsonNode;
-import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.StringNode;
 
 @Service
 public class RedisService {
 
     private final RedisTemplate<String, JsonNode> redisTemplate;
-    private final ObjectMapper objectMapper;
 
-    public RedisService(RedisTemplate<String, JsonNode> redisTemplate, ObjectMapper objectMapper) {
+    public RedisService(RedisTemplate<String, JsonNode> redisTemplate) {
         this.redisTemplate = redisTemplate;
-        this.objectMapper = objectMapper;
     }
 
     public void save(String key, JsonNode json, long minutes) {
@@ -28,11 +26,11 @@ public class RedisService {
     }
 
     public void save(String key, String value, long minutes) {
-        redisTemplate.opsForValue().set(key, objectMapper.valueToTree(value), minutes);
+        redisTemplate.opsForValue().set(key, StringNode.valueOf(value), minutes);
     }
 
     public void save(String key, String value) {
-        redisTemplate.opsForValue().set(key, objectMapper.valueToTree(value), Duration.ofMinutes(10));
+        redisTemplate.opsForValue().set(key, StringNode.valueOf(value), Duration.ofMinutes(10));
     }
 
     public JsonNode getJson(String key) {
@@ -41,7 +39,7 @@ public class RedisService {
 
     public String getString(String key) {
         JsonNode res = redisTemplate.opsForValue().get(key);
-        if (res != null && !res.isEmpty() && res.isString()) {
+        if (res != null && !res.isNull() && res.isString()) {
             return res.asString();
         }
         return null;

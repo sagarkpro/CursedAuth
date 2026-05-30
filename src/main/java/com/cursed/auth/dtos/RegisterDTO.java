@@ -33,6 +33,7 @@ public class RegisterDTO {
     String lastName;
     @Length(min = 2, max = 100)
     String middleName;
+    String profileImage;
     @NotNull
     Role role;
 }

@@ -36,6 +36,7 @@ public class User extends BaseEntity implements UserDetails {
     String firstName;
     String lastName;
     String middleName;
+    String profileImage;
     Role role;
     boolean verified;
 

@@ -1,5 +1,5 @@
 # -------- BUILD STAGE --------
-FROM eclipse-temurin:25-jdk AS builder
+FROM eclipse-temurin:26-jdk AS builder
 WORKDIR /build
 
 # Copy source
@@ -9,7 +9,7 @@ COPY . .
 RUN ./mvnw clean package -DskipTests
 
 # -------- RUNTIME STAGE --------
-FROM eclipse-temurin:25-jre
+FROM eclipse-temurin:26-jre
 WORKDIR /app
 
 # Copy jar from builder stage
