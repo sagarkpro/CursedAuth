@@ -91,9 +91,7 @@ public class UserServiceImpl implements UserService {
 			redisService.save(user.getEmail() + RedisKeys.OTP_VERIFICATION, objectMapper.valueToTree(
 					new RedisOTPVerification(otp, user.getEmail())));
 
-			// TODO remove
-			if (!"debug".equals("debug"))
-				sendEmailVerificationOtp(user, otp);
+			sendEmailVerificationOtp(user, otp);
 
 			return BaseResponseDTO.<RegisterResponseDTO>builder()
 					.success(true)
