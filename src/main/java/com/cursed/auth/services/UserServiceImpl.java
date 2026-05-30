@@ -79,6 +79,7 @@ public class UserServiceImpl implements UserService {
 					.firstName(request.getFirstName())
 					.middleName(request.getMiddleName())
 					.lastName(request.getLastName())
+					.username(request.getUsername())
 					.password(passwordEncoder.encode(request.getPassword()))
 					.role(request.getRole())
 					.profileImage(imgUrl)
