@@ -16,7 +16,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class RegisterDTO {
+public class RegisterDto {
     @NotBlank
     @Email
     String email;

@@ -15,8 +15,8 @@ import org.springframework.web.multipart.MultipartFile;
 import com.cursed.auth.clients.BrevoEmailClient;
 import com.cursed.auth.constants.MinIO;
 import com.cursed.auth.constants.RedisKeys;
-import com.cursed.auth.dtos.RegisterDTO;
-import com.cursed.auth.dtos.VerifyOTPDTO;
+import com.cursed.auth.dtos.RegisterDto;
+import com.cursed.auth.dtos.VerifyOTPDto;
 import com.cursed.auth.dtos.response.BaseResponseDTO;
 import com.cursed.auth.dtos.response.ErrorDTO;
 import com.cursed.auth.dtos.response.LoginResponseDTO;
@@ -53,7 +53,7 @@ public class UserServiceImpl implements UserService {
 		this.minIOService = minIOService;
 	}
 
-	public BaseResponseDTO<RegisterResponseDTO> register(RegisterDTO request) {
+	public BaseResponseDTO<RegisterResponseDTO> register(RegisterDto request) {
 		try {
 			if (userRepository.existsByEmail(request.getEmail())) {
 				return BaseResponseDTO.<RegisterResponseDTO>builder()
@@ -186,7 +186,7 @@ public class UserServiceImpl implements UserService {
 	}
 
 	@Override
-	public BaseResponseDTO<LoginResponseDTO> verifyOtp(VerifyOTPDTO request) {
+	public BaseResponseDTO<LoginResponseDTO> verifyOtp(VerifyOTPDto request) {
 		var user = userRepository.findByEmail(request.getEmail());
 		if (user != null && !user.isVerified()) {
 			var otpVerification = redisService.getJson(user.getEmail() + RedisKeys.OTP_VERIFICATION);

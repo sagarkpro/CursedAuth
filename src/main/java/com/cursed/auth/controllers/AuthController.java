@@ -9,9 +9,9 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.cursed.auth.dtos.LoginDTO;
-import com.cursed.auth.dtos.RegisterDTO;
-import com.cursed.auth.dtos.VerifyOTPDTO;
+import com.cursed.auth.dtos.LoginDto;
+import com.cursed.auth.dtos.RegisterDto;
+import com.cursed.auth.dtos.VerifyOTPDto;
 import com.cursed.auth.dtos.response.BaseResponseDTO;
 import com.cursed.auth.dtos.response.LoginResponseDTO;
 import com.cursed.auth.dtos.response.RegisterResponseDTO;
@@ -51,7 +51,7 @@ public class AuthController {
 
     @PostMapping("/login")
     @Operation(summary = "Login", description = "Authenticates a verified active user and returns a JWT access token.")
-    public ResponseEntity<BaseResponseDTO<LoginResponseDTO>> login(@RequestBody LoginDTO request) {
+    public ResponseEntity<BaseResponseDTO<LoginResponseDTO>> login(@RequestBody LoginDto request) {
         return CommonUtils.handleResponse(userService.login(request.getEmail(), request.getPassword()));
     }
 
@@ -70,13 +70,13 @@ public class AuthController {
     @PostMapping(value = "/register", consumes = MediaType.APPLICATION_JSON_VALUE)
     @Operation(summary = "Register", description = "Creates a user account and sends an email verification OTP.")
     public ResponseEntity<BaseResponseDTO<RegisterResponseDTO>> register(
-            @RequestBody @Valid RegisterDTO user) {
+            @RequestBody @Valid RegisterDto user) {
         return CommonUtils.handleResponse(userService.register(user));
     }
 
     @PostMapping("/verify-otp")
     @Operation(summary = "Verify OTP", description = "Verifies a registration OTP and returns a JWT access token.")
-    public ResponseEntity<BaseResponseDTO<LoginResponseDTO>> verifyOtp(@RequestBody @Valid VerifyOTPDTO request) {
+    public ResponseEntity<BaseResponseDTO<LoginResponseDTO>> verifyOtp(@RequestBody @Valid VerifyOTPDto request) {
         return CommonUtils.handleResponse(userService.verifyOtp(request));
     }
 }

@@ -12,7 +12,7 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-public class VerifyOTPDTO {
+public class VerifyOTPDto {
     @NotBlank
     @Email
     String email;
