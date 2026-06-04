@@ -1,0 +1,335 @@
+{
+  "info": {
+    "_postman_id": "7ab8d7d1-7772-4d1e-9a61-8b57d4f4ce11",
+    "name": "Cursed Auth SSO PKCE",
+    "description": "Simulates the Universal Login-style authorization-code + PKCE flow against Cursed Auth running as its own identity provider.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "1. Authorize - Start Login Transaction",
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const uuid = () => pm.variables.replaceIn('{{$randomUUID}}').replace(/-/g, '');",
+              "const verifier = `${uuid()}${uuid()}${uuid()}`;",
+              "const hash = CryptoJS.SHA256(verifier);",
+              "const challenge = CryptoJS.enc.Base64.stringify(hash)",
+              "  .replace(/\\+/g, '-')",
+              "  .replace(/\\//g, '_')",
+              "  .replace(/=+$/, '');",
+              "",
+              "pm.collectionVariables.set('code_verifier', verifier);",
+              "pm.collectionVariables.set('code_challenge', challenge);"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const location = pm.response.headers.get('Location') || '';",
+              "",
+              "pm.test('authorize redirects to login', function () {",
+              "  pm.expect(pm.response.code).to.be.oneOf([302, 303]);",
+              "  pm.expect(location).to.include('/api/auth/fake-login');",
+              "});"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/oauth2/authorize?response_type=code&client_id={{client_id}}&redirect_uri={{redirect_uri}}&scope={{scope}}&state=postman-test&code_challenge={{code_challenge}}&code_challenge_method=S256",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "oauth2",
+            "authorize"
+          ],
+          "query": [
+            {
+              "key": "response_type",
+              "value": "code"
+            },
+            {
+              "key": "client_id",
+              "value": "{{client_id}}"
+            },
+            {
+              "key": "redirect_uri",
+              "value": "{{redirect_uri}}"
+            },
+            {
+              "key": "scope",
+              "value": "{{scope}}"
+            },
+            {
+              "key": "state",
+              "value": "postman-test"
+            },
+            {
+              "key": "code_challenge",
+              "value": "{{code_challenge}}"
+            },
+            {
+              "key": "code_challenge_method",
+              "value": "S256"
+            }
+          ]
+        }
+      },
+      "protocolProfileBehavior": {
+        "followRedirects": false
+      }
+    },
+    {
+      "name": "2. Login - JSON Credentials",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "",
+              "pm.test('login succeeds without issuing tokens', function () {",
+              "  pm.expect(pm.response.code).to.equal(200);",
+              "  pm.expect(json.success).to.equal(true);",
+              "  pm.expect(json.data.redirectUrl).to.be.a('string');",
+              "  pm.expect(json.data.redirectUrl).to.include('/oauth2/authorize');",
+              "});",
+              "",
+              "if (json.data && json.data.redirectUrl) {",
+              "  pm.collectionVariables.set('authorization_redirect_url', json.data.redirectUrl);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{user_email}}\",\n  \"password\": \"{{user_password}}\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/auth/login",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "login"
+          ]
+        }
+      }
+    },
+    {
+      "name": "3. Authorize - Continue And Capture Code",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const location = pm.response.headers.get('Location') || '';",
+              "const codeMatch = location.match(/[?&]code=([^&]+)/);",
+              "",
+              "pm.test('authorize returns redirect with code', function () {",
+              "  pm.expect(pm.response.code).to.be.oneOf([302, 303]);",
+              "  pm.expect(codeMatch).to.not.equal(null);",
+              "});",
+              "",
+              "if (codeMatch) {",
+              "  pm.collectionVariables.set('authorization_code', decodeURIComponent(codeMatch[1]));",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{authorization_redirect_url}}"
+      },
+      "protocolProfileBehavior": {
+        "followRedirects": false
+      }
+    },
+    {
+      "name": "4. Token - Exchange Code",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const json = pm.response.json();",
+              "",
+              "pm.test('token endpoint returns access token', function () {",
+              "  pm.expect(pm.response.code).to.equal(200);",
+              "  pm.expect(json.access_token).to.be.a('string');",
+              "});",
+              "",
+              "if (json.access_token) {",
+              "  pm.collectionVariables.set('access_token', json.access_token);",
+              "}",
+              "if (json.id_token) {",
+              "  pm.collectionVariables.set('id_token', json.id_token);",
+              "}",
+              "if (json.refresh_token) {",
+              "  pm.collectionVariables.set('refresh_token', json.refresh_token);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded"
+          }
+        ],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "grant_type",
+              "value": "authorization_code",
+              "type": "text"
+            },
+            {
+              "key": "client_id",
+              "value": "{{client_id}}",
+              "type": "text"
+            },
+            {
+              "key": "redirect_uri",
+              "value": "{{redirect_uri}}",
+              "type": "text"
+            },
+            {
+              "key": "code",
+              "value": "{{authorization_code}}",
+              "type": "text"
+            },
+            {
+              "key": "code_verifier",
+              "value": "{{code_verifier}}",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{base_url}}/oauth2/token",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "oauth2",
+            "token"
+          ]
+        }
+      }
+    },
+    {
+      "name": "5. Protected API - Bearer Token",
+      "request": {
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{access_token}}",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/api/auth/all",
+          "host": [
+            "{{base_url}}"
+          ],
+          "path": [
+            "api",
+            "auth",
+            "all"
+          ]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:7772"
+    },
+    {
+      "key": "client_id",
+      "value": "my-cursed-client"
+    },
+    {
+      "key": "redirect_uri",
+      "value": "https://oauth.pstmn.io/v1/callback"
+    },
+    {
+      "key": "scope",
+      "value": "openid profile api.read"
+    },
+    {
+      "key": "user_email",
+      "value": "gojo@cursedshrine.co.in"
+    },
+    {
+      "key": "user_password",
+      "value": "domain-expansion"
+    },
+    {
+      "key": "code_verifier",
+      "value": ""
+    },
+    {
+      "key": "code_challenge",
+      "value": ""
+    },
+    {
+      "key": "authorization_redirect_url",
+      "value": ""
+    },
+    {
+      "key": "authorization_code",
+      "value": ""
+    },
+    {
+      "key": "access_token",
+      "value": ""
+    },
+    {
+      "key": "id_token",
+      "value": ""
+    },
+    {
+      "key": "refresh_token",
+      "value": ""
+    }
+  ]
+}

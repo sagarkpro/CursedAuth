@@ -13,7 +13,7 @@
 
 <br />
 
-**Cursed Auth** is an in-house authentication API built around RSA-signed JWTs, email OTP verification, MongoDB-backed users, Redis-backed short-lived verification codes, and Spring Security stateless authorization.
+**Cursed Auth** is an in-house authentication API built around RSA-signed JWTs, email OTP verification, MongoDB-backed users, Redis-backed short-lived verification codes, and Spring Security authorization.
 
 </div>
 
@@ -63,10 +63,11 @@ flowchart LR
 | Password hashing | Built in | Uses `BCryptPasswordEncoder` |
 | Email OTP verification | Built in | Generates a 6-character alphanumeric OTP |
 | OTP cache | Built in | Stores verification records in Redis for 10 minutes |
+| OAuth2/OIDC SSO | Built in | Authorization code flow with PKCE for public clients |
 | JWT signing | Built in | Signs tokens with RSA private key using `RS512` |
 | JWT validation | Built in | Verifies signatures with RSA public key |
 | RBAC-ready users | Built in | Current roles: `VIEWER`, `SUPERUSER` |
-| Stateless API security | Built in | Spring Security with bearer-token authentication |
+| API security | Built in | Spring Security OAuth2 resource server bearer-token authentication |
 | OpenAPI docs | Built in | Swagger UI plus raw OpenAPI JSON/YAML |
 | Health endpoints | Built in | Public `/api/health/ok` and test failure endpoint |
 | Email delivery | Built in | Sends OTP emails through Brevo |
@@ -79,7 +80,7 @@ flowchart LR
 | --- | --- |
 | Runtime | Java 25 |
 | Framework | Spring Boot 4.0.2 |
-| Security | Spring Security, stateless filter chain |
+| Security | Spring Security, Spring Authorization Server, OAuth2 resource server |
 | Token library | JJWT `0.13.0` |
 | Token algorithm | `RS512` |
 | API documentation | Springdoc OpenAPI, Swagger UI |
@@ -139,7 +140,12 @@ Error responses use:
 | `GET` | `/api/health/fail` | Intentional failure endpoint for testing |
 | `POST` | `/api/auth/register` | Create a user and send verification OTP |
 | `POST` | `/api/auth/verify-otp` | Verify OTP and issue an access token |
-| `POST` | `/api/auth/login` | Login a verified active user |
+| `POST` | `/api/auth/login` | JSON credential step for a pending OAuth login transaction |
+| `GET` | `/api/auth/fake-login` | JSON placeholder for authorize-to-login redirects |
+| `GET` | `/.well-known/openid-configuration` | OIDC discovery |
+| `GET` | `/oauth2/authorize` | Start authorization code + PKCE flow |
+| `POST` | `/oauth2/token` | Exchange authorization code for OAuth tokens |
+| `GET` | `/oauth2/jwks` | Public OAuth signing keys |
 
 ### Protected Routes
 
@@ -208,34 +214,46 @@ Returns a login-style token payload:
 }
 ```
 
-### Login
+### SSO PKCE Flow In Postman
 
-```bash
-curl --request POST https://api.auth.cursedshrine.co.in/api/auth/login \
-  --header "Content-Type: application/json" \
-  --data '{
-    "email": "gojo@cursedshrine.co.in",
-    "password": "domain-expansion"
-  }'
-```
+Import `postman/cursed-auth-sso-pkce.postman_collection.json`, then set:
 
-Response:
+| Variable | Value |
+| --- | --- |
+| `base_url` | `http://localhost:7772` |
+| `client_id` | `my-cursed-client` |
+| `redirect_uri` | `https://oauth.pstmn.io/v1/callback` |
+| `scope` | `openid profile api.read` |
+| `user_email` | Registered Mongo user email |
+| `user_password` | Registered Mongo user password |
 
-```json
+Run the collection requests in order:
+
+1. `Authorize - Start Login Transaction`
+2. `Login - JSON Credentials`
+3. `Authorize - Continue And Capture Code`
+4. `Token - Exchange Code`
+5. `Protected API - Bearer Token`
+
+The login request is JSON and does not issue tokens:
+
+```http
+POST http://localhost:7772/api/auth/login
+Content-Type: application/json
+
 {
-  "success": true,
-  "error": null,
-  "data": {
-    "accessToken": "<jwt>"
-  }
+  "email": "<registered-user-email>",
+  "password": "<registered-user-password>"
 }
 ```
+
+Keep redirect following disabled on both authorize requests. The first authorize request creates the pending OAuth transaction and redirects to `/api/auth/fake-login`. The JSON login response returns `data.redirectUrl`; call that URL with the same Postman cookie jar to receive the authorization code redirect. The token request exchanges that code with the generated `code_verifier`.
 
 ### Call a Protected Endpoint
 
 ```bash
 curl https://api.auth.cursedshrine.co.in/api/auth/all \
-  --header "Authorization: Bearer <jwt>"
+  --header "Authorization: Bearer <access_token>"
 ```
 
 ---
@@ -373,7 +391,7 @@ src/main/java/com/cursed/auth
 |-- clients
 |   `-- BrevoEmailClient.java
 |-- config
-|   |-- Beans.java
+|   |-- CoffeeBeans.java
 |   |-- OpenApiConfig.java
 |   |-- RedisConfig.java
 |   `-- SecurityConfig.java
@@ -389,8 +407,6 @@ src/main/java/com/cursed/auth
 |   |-- BaseEntity.java
 |   |-- User.java
 |   `-- enums/Role.java
-|-- filters
-|   `-- JwtFilter.java
 |-- repository
 |   `-- UserRepository.java
 |-- services
@@ -420,10 +436,10 @@ src/main/java/com/cursed/auth
 
 | Scenario | Behavior |
 | --- | --- |
-| Unknown login email | Returns `Invalid email/password` |
-| Wrong password | Returns `Invalid email/password` |
-| Unverified user login | Returns `Email not verified` |
-| Blocked user login | Returns `User is blocked` |
+| Login without pending authorize request | Returns `400` with `Start SSO with /oauth2/authorize before posting credentials.` |
+| Unknown login email or wrong password | Returns `401` with `Invalid email/password` |
+| Unverified user JSON login | Returns `401` with `Email not verified` |
+| Blocked user JSON login | Returns `401` with `User is blocked` |
 | Duplicate email registration | Returns `User already exists` |
 | Duplicate username registration | Returns `This username is taken by another user` |
 | Missing authentication | Returns `401` with `UNAUTHORIZED` |
