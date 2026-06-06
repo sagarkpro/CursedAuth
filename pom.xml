@@ -156,13 +156,11 @@
 			<scope>provided</scope>
 		</dependency>
 
-		<!-- Source:
-		https://mvnrepository.com/artifact/org.springframework.boot/spring-boot-starter-oauth2-authorization-server -->
+		<!-- Resource server: validates our minted RS256 JWTs (provides NimbusJwtDecoder
+		     and transitively spring-security-oauth2-jose -> NimbusJwtEncoder). -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-oauth2-authorization-server</artifactId>
-			<version>4.1.0-RC1</version>
-			<scope>compile</scope>
+			<artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
 		</dependency>
 	</dependencies>
 

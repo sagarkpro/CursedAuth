@@ -19,7 +19,14 @@ public class RegisterClientDto {
     Set<String> scopes;
     Set<String> grantTypes;
     Set<String> authenticationMethods;
+    Set<String> postLogoutRedirectUris;
+
+    long accessTokenTtlSeconds;
+    long refreshTokenTtlSeconds;
+    Boolean reuseRefreshTokens;
 
     Boolean requireConsent;
     Boolean requirePkce;
+
+    String status;
 }

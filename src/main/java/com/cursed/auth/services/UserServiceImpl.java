@@ -27,7 +27,6 @@ import com.cursed.auth.logging.CursedLogger;
 import com.cursed.auth.records.RedisOTPVerification;
 import com.cursed.auth.records.SendOTPVerificationMail;
 import com.cursed.auth.repository.UserRepository;
-import com.cursed.auth.utils.JwtUtils;
 
 import tools.jackson.databind.ObjectMapper;
 
@@ -35,18 +34,16 @@ import tools.jackson.databind.ObjectMapper;
 public class UserServiceImpl implements UserService {
 	private final UserRepository userRepository;
 	private final BCryptPasswordEncoder passwordEncoder;
-	private final JwtUtils jwtUtils;
 	private final RedisService redisService;
 	private final ObjectMapper objectMapper;
 	private final BrevoEmailClient brevoEmailClient;
 	private final MinIOService minIOService;
 
-	public UserServiceImpl(UserRepository userRepository, BCryptPasswordEncoder passwordEncoder, JwtUtils jwtUtils,
+	public UserServiceImpl(UserRepository userRepository, BCryptPasswordEncoder passwordEncoder,
 			RedisService redisService, ObjectMapper objectMapper, BrevoEmailClient brevoEmailClient,
 			MinIOService minIOService) {
 		this.userRepository = userRepository;
 		this.passwordEncoder = passwordEncoder;
-		this.jwtUtils = jwtUtils;
 		this.redisService = redisService;
 		this.objectMapper = objectMapper;
 		this.brevoEmailClient = brevoEmailClient;
@@ -130,50 +127,33 @@ public class UserServiceImpl implements UserService {
 	}
 
 	@Override
-	public BaseResponseDTO<LoginResponseDTO> login(String email, String password) {
+	public AuthResult authenticate(String email, String password) {
 		User user = userRepository.findByEmail(email);
-		if (user == null) {
+		if (user == null || !passwordEncoder.matches(password, user.getPassword())) {
+			return new AuthResult(null, "Invalid email/password");
+		}
+		if (!user.isVerified()) {
+			return new AuthResult(null, "Email not verified");
+		}
+		if (!user.isActive()) {
+			return new AuthResult(null, "User is blocked");
+		}
+		return new AuthResult(user, null);
+	}
+
+	@Override
+	public BaseResponseDTO<LoginResponseDTO> login(String email, String password) {
+		AuthResult result = authenticate(email, password);
+		if (result.user() == null) {
 			return BaseResponseDTO.<LoginResponseDTO>builder()
 					.success(false)
-					.error(ErrorDTO
-							.builder()
-							.message("Invalid email/password")
-							.build())
+					.error(ErrorDTO.builder().message(result.errorMessage()).build())
 					.build();
 		}
-		if (passwordEncoder.matches(password, user.getPassword())) {
-			if (!user.isVerified()) {
-				return BaseResponseDTO.<LoginResponseDTO>builder()
-						.success(false)
-						.error(ErrorDTO
-								.builder()
-								.message("Email not verified")
-								.build())
-						.build();
-			}
-			if (!user.isActive()) {
-				return BaseResponseDTO.<LoginResponseDTO>builder()
-						.success(false)
-						.error(ErrorDTO
-								.builder()
-								.message("User is blocked")
-								.build())
-						.build();
-			}
-			String token = jwtUtils.generateToken(user);
-			return BaseResponseDTO.<LoginResponseDTO>builder()
-					.success(true)
-					.data(LoginResponseDTO.builder()
-							.accessToken(token)
-							.build())
-					.build();
-		}
+		// Tokens are not minted here; the OAuth flow mints them at /oauth/token.
 		return BaseResponseDTO.<LoginResponseDTO>builder()
-				.success(false)
-				.error(ErrorDTO
-						.builder()
-						.message("Invalid email/password")
-						.build())
+				.success(true)
+				.data(LoginResponseDTO.builder().build())
 				.build();
 	}
 
@@ -195,11 +175,11 @@ public class UserServiceImpl implements UserService {
 			if (otpVerificationRecord.otp().equals(request.getOtp())) {
 				user.setVerified(true);
 				userRepository.save(user);
-				String accessToken = jwtUtils.generateToken(user);
+				// String accessToken = jwtUtils.generateToken(user);
 				return BaseResponseDTO.<LoginResponseDTO>builder()
 						.success(true)
 						.data(LoginResponseDTO.builder()
-								.accessToken(accessToken)
+								// .accessToken(accessToken)
 								.build())
 						.build();
 			} else {

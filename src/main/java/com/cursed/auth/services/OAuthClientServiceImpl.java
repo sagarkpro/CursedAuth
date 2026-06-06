@@ -95,8 +95,13 @@ public class OAuthClientServiceImpl implements OAuthClientService {
                 .scopes(client.getScopes())
                 .grantTypes(client.getGrantTypes())
                 .authenticationMethods(client.getAuthenticationMethods())
+                .postLogoutRedirectUris(client.getPostLogoutRedirectUris())
+                .accessTokenTtlSeconds(client.getAccessTokenTtlSeconds() > 0 ? client.getAccessTokenTtlSeconds() : 86400)
+                .refreshTokenTtlSeconds(client.getRefreshTokenTtlSeconds() > 0 ? client.getRefreshTokenTtlSeconds() : 1209600)
+                .reuseRefreshTokens(client.getReuseRefreshTokens() != null ? client.getReuseRefreshTokens() : false)
                 .requireConsent(client.getRequireConsent())
                 .requirePkce(client.getRequirePkce())
+                .status(client.getStatus() != null ? client.getStatus() : "ACTIVE")
                 .build();
     }
 
@@ -112,8 +117,13 @@ public class OAuthClientServiceImpl implements OAuthClientService {
                 .scopes(client.getScopes())
                 .grantTypes(client.getGrantTypes())
                 .authenticationMethods(client.getAuthenticationMethods())
+                .postLogoutRedirectUris(client.getPostLogoutRedirectUris() != null ? client.getPostLogoutRedirectUris() : existingClient.getPostLogoutRedirectUris())
+                .accessTokenTtlSeconds(client.getAccessTokenTtlSeconds() > 0 ? client.getAccessTokenTtlSeconds() : existingClient.getAccessTokenTtlSeconds())
+                .refreshTokenTtlSeconds(client.getRefreshTokenTtlSeconds() > 0 ? client.getRefreshTokenTtlSeconds() : existingClient.getRefreshTokenTtlSeconds())
+                .reuseRefreshTokens(client.getReuseRefreshTokens() != null ? client.getReuseRefreshTokens() : existingClient.getReuseRefreshTokens())
                 .requireConsent(client.getRequireConsent())
                 .requirePkce(client.getRequirePkce())
+                .status(client.getStatus() != null ? client.getStatus() : existingClient.getStatus())
                 .build();
     }
 }
