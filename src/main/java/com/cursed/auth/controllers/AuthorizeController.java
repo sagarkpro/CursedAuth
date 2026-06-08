@@ -1,6 +1,5 @@
 package com.cursed.auth.controllers;
 
-import java.net.URI;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -15,13 +14,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.util.UriComponentsBuilder;
 
 import com.cursed.auth.constants.OAuthErrors;
 import com.cursed.auth.entities.LoginTransaction;
 import com.cursed.auth.entities.OAuthClient;
 import com.cursed.auth.repository.LoginTransactionRepository;
 import com.cursed.auth.repository.OAuthClientRepository;
+import com.cursed.auth.utils.RedirectUtils;
 import com.cursed.auth.utils.TokenHashUtils;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -113,10 +112,8 @@ public class AuthorizeController {
                 .build();
         loginTransactionRepository.save(tx);
 
-        String location = UriComponentsBuilder.fromUriString("/login")
-                .queryParam("login_id", tx.getId())
-                .build().encode().toUriString();
-        return ResponseEntity.status(HttpStatus.FOUND).location(URI.create(location)).build();
+        return ResponseEntity.status(HttpStatus.FOUND)
+                .location(RedirectUtils.withParams("/login", Map.of("login_id", tx.getId()))).build();
     }
 
     private static Set<String> parseScopes(String scope) {
@@ -134,13 +131,13 @@ public class AuthorizeController {
     }
 
     private ResponseEntity<Object> redirectError(String redirectUri, String state, String error, String description) {
-        UriComponentsBuilder b = UriComponentsBuilder.fromUriString(redirectUri)
-                .queryParam("error", error)
-                .queryParam("error_description", description);
+        Map<String, String> params = new LinkedHashMap<>();
+        params.put("error", error);
+        params.put("error_description", description);
         if (StringUtils.isNotBlank(state)) {
-            b.queryParam("state", state);
+            params.put("state", state);
         }
         return ResponseEntity.status(HttpStatus.FOUND)
-                .location(URI.create(b.build().encode().toUriString())).build();
+                .location(RedirectUtils.withParams(redirectUri, params)).build();
     }
 }

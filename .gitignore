@@ -36,5 +36,5 @@ build/
 .agents/
 .codex/
 
-application.yml
-application.properties
+application*.yml
+application*.properties

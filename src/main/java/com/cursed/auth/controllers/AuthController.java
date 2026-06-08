@@ -4,8 +4,8 @@ import static com.cursed.auth.config.OpenApiConfig.BEARER_AUTH;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Optional;
 
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.http.MediaType;
@@ -19,7 +19,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.util.UriComponentsBuilder;
 
 import com.cursed.auth.dtos.LoginDto;
 import com.cursed.auth.dtos.RegisterDto;
@@ -34,6 +33,7 @@ import com.cursed.auth.repository.LoginTransactionRepository;
 import com.cursed.auth.services.TokenService;
 import com.cursed.auth.services.UserService;
 import com.cursed.auth.utils.CommonUtils;
+import com.cursed.auth.utils.RedirectUtils;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -116,10 +116,13 @@ public class AuthController {
         String code = tokenService.issueAuthorizationCode(tx, result.user().getId(), Instant.now());
         loginTransactionRepository.deleteById(tx.getId());
 
-        String redirectUri = UriComponentsBuilder.fromUriString(tx.getRedirectUri())
-                .queryParam("code", code)
-                .queryParamIfPresent("state", Optional.ofNullable(StringUtils.trimToNull(tx.getState())))
-                .build().encode().toUriString();
+        Map<String, String> params = new LinkedHashMap<>();
+        params.put("code", code);
+        String state = StringUtils.trimToNull(tx.getState());
+        if (state != null) {
+            params.put("state", state);
+        }
+        String redirectUri = RedirectUtils.withParams(tx.getRedirectUri(), params).toString();
 
         return ResponseEntity.ok(BaseResponseDTO.<Map<String, String>>builder()
                 .success(true)

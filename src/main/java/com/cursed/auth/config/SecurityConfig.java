@@ -97,8 +97,11 @@ public class SecurityConfig {
         // Explicit origins only. The SPA uses Bearer headers (not cookies), so credentials
         // are off — which also means a wildcard origin would be invalid anyway.
         config.setAllowedOrigins(allowedOrigins);
-        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept"));
-        config.setAllowedMethods(List.of("GET", "POST", "OPTIONS"));
+        // Reflect any requested header. auth0-spa-js sends a custom "Auth0-Client" telemetry
+        // header on /oauth/token; a narrow list rejects the preflight (403, no Allow-Origin).
+        // Valid because allowCredentials is false.
+        config.setAllowedHeaders(List.of("*"));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         config.setAllowCredentials(false);
         config.setMaxAge(3600L);
 
