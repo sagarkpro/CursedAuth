@@ -155,6 +155,13 @@
 			<version>2.44.12</version>
 			<scope>provided</scope>
 		</dependency>
+
+		<!-- Resource server: validates our minted RS256 JWTs (provides NimbusJwtDecoder
+		     and transitively spring-security-oauth2-jose -> NimbusJwtEncoder). -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-oauth2-resource-server</artifactId>
+		</dependency>
 	</dependencies>
 
 
