@@ -33,6 +33,10 @@ public class RedisService {
         redisTemplate.opsForValue().set(key, StringNode.valueOf(value), Duration.ofMinutes(10));
     }
 
+    public void delete(String key) {
+        redisTemplate.delete(key);
+    }
+
     public JsonNode getJson(String key) {
         return redisTemplate.opsForValue().get(key);
     }

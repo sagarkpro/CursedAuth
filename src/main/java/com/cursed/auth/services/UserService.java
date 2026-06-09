@@ -19,6 +19,8 @@ public interface UserService {
 
     BaseResponseDTO<LoginResponseDTO> verifyOtp(VerifyOTPDto request);
 
+    BaseResponseDTO<String> resendOtp(String email);
+
     BaseResponseDTO<UserResponseDTO> getUserByEmail(String email);
 
     BaseResponseDTO<LoginResponseDTO> login(String email, String password);
