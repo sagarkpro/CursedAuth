@@ -19,9 +19,12 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 /**
- * OIDC UserInfo endpoint. Requires a valid Bearer access token (resource-server chain).
- * Returns claims gated by the scopes the access token was granted. The Auth0 React SDK
- * does not call this by default (it reads the ID token), but it is part of OIDC.
+ * OIDC UserInfo endpoint. Requires a valid Bearer access token (resource-server
+ * chain).
+ * Returns claims gated by the scopes the access token was granted. The Auth0
+ * React SDK
+ * does not call this by default (it reads the ID token), but it is part of
+ * OIDC.
  */
 @RestController
 @Tag(name = "OIDC UserInfo", description = "OpenID Connect UserInfo endpoint.")
@@ -62,6 +65,9 @@ public class UserInfoController {
             }
             if (user.getUpdatedAt() != null) {
                 claims.put("updated_at", user.getUpdatedAt().getEpochSecond());
+            }
+            if (user.getRole() != null) {
+                claims.put("role", user.getRole().toString());
             }
         }
         if (hasEmail) {
