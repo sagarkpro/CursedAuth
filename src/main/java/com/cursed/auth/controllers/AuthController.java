@@ -22,6 +22,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.cursed.auth.dtos.LoginDto;
 import com.cursed.auth.dtos.RegisterDto;
+import com.cursed.auth.dtos.ResendOTPDto;
 import com.cursed.auth.dtos.VerifyOTPDto;
 import com.cursed.auth.dtos.response.BaseResponseDTO;
 import com.cursed.auth.dtos.response.ErrorDTO;
@@ -95,6 +96,12 @@ public class AuthController {
     @Operation(summary = "Verify OTP", description = "Verifies a registration OTP and marks the user verified.")
     public ResponseEntity<BaseResponseDTO<LoginResponseDTO>> verifyOtp(@RequestBody @Valid VerifyOTPDto request) {
         return CommonUtils.handleResponse(userService.verifyOtp(request));
+    }
+
+    @PostMapping("/resend-otp")
+    @Operation(summary = "Resend OTP", description = "Regenerates and re-sends the email verification OTP for an unverified user.")
+    public ResponseEntity<BaseResponseDTO<String>> resendOtp(@RequestBody @Valid ResendOTPDto request) {
+        return CommonUtils.handleResponse(userService.resendOtp(request.getEmail()));
     }
 
     /**

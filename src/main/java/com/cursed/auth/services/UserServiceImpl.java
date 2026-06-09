@@ -84,12 +84,7 @@ public class UserServiceImpl implements UserService {
 
 			User res = userRepository.save(user);
 
-			String otp = RandomStringUtils.secure().nextAlphanumeric(6).toUpperCase();
-			CursedLogger.info("OTP for user " + user.getEmail() + " is: " + otp);
-			redisService.save(user.getEmail() + RedisKeys.OTP_VERIFICATION, objectMapper.valueToTree(
-					new RedisOTPVerification(otp, user.getEmail())));
-
-			sendEmailVerificationOtp(user, otp);
+			generateAndSendOtp(user);
 
 			return BaseResponseDTO.<RegisterResponseDTO>builder()
 					.success(true)
@@ -193,6 +188,37 @@ public class UserServiceImpl implements UserService {
 				.error(ErrorDTO.builder()
 						.message("Failed to verify user").build())
 				.build();
+	}
+
+	@Override
+	public BaseResponseDTO<String> resendOtp(String email) {
+		User user = userRepository.findByEmail(email);
+		if (user == null) {
+			return BaseResponseDTO.<String>builder()
+					.success(false)
+					.error(ErrorDTO.builder().message("User not found").build())
+					.build();
+		}
+		if (user.isVerified()) {
+			return BaseResponseDTO.<String>builder()
+					.success(false)
+					.error(ErrorDTO.builder().message("User already verified").build())
+					.build();
+		}
+		redisService.delete(user.getEmail() + RedisKeys.OTP_VERIFICATION);
+		generateAndSendOtp(user);
+		return BaseResponseDTO.<String>builder()
+				.success(true)
+				.data("OTP resent successfully")
+				.build();
+	}
+
+	private void generateAndSendOtp(User user) {
+		String otp = RandomStringUtils.secure().nextAlphanumeric(6).toUpperCase();
+		CursedLogger.info("OTP for user " + user.getEmail() + " is: " + otp);
+		redisService.save(user.getEmail() + RedisKeys.OTP_VERIFICATION, objectMapper.valueToTree(
+				new RedisOTPVerification(otp, user.getEmail())));
+		sendEmailVerificationOtp(user, otp);
 	}
 
 	private boolean sendEmailVerificationOtp(User user, String otp) {
