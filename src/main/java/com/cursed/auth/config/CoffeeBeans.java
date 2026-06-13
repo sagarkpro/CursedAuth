@@ -1,5 +1,6 @@
 package com.cursed.auth.config;
 
+import java.io.IOException;
 import java.security.KeyFactory;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
@@ -7,6 +8,7 @@ import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.config.BeanPostProcessor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -15,6 +17,7 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
+import org.springframework.ui.freemarker.FreeMarkerConfigurationFactory;
 
 import com.nimbusds.jose.JOSEException;
 import com.nimbusds.jose.JWSAlgorithm;
@@ -24,6 +27,9 @@ import com.nimbusds.jose.jwk.RSAKey;
 import com.nimbusds.jose.jwk.source.ImmutableJWKSet;
 import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
+
+import freemarker.template.TemplateException;
+import freemarker.template.TemplateExceptionHandler;
 
 @Configuration
 public class CoffeeBeans {
@@ -65,7 +71,8 @@ public class CoffeeBeans {
 
     /**
      * Decoder used by the resource server to validate access tokens on our own
-     * protected APIs. Verifies signature + exp/nbf only (no iss/aud), which lets the
+     * protected APIs. Verifies signature + exp/nbf only (no iss/aud), which lets
+     * the
      * trailing-slash Auth0-style issuer pass through cleanly.
      */
     @Bean

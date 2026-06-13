@@ -2,7 +2,7 @@
 
 # Cursed Auth
 
-### A dedicated JWT authentication service for every service that needs identity.
+### A dedicated JWT authentication service for every service that needs identity
 
 [![Java](https://img.shields.io/badge/Java-25-fd5c63?style=for-the-badge&logo=openjdk&logoColor=white)](https://openjdk.org/)
 [![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.0.2-6db33f?style=for-the-badge&logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
@@ -95,16 +95,16 @@ flowchart LR
 Base URL:
 
 ```text
-https://api.auth.cursedshrine.co.in
+https://api.auth.sudox1.com
 ```
 
 Docs:
 
 | UI / Spec | URL |
 | --- | --- |
-| Swagger UI | `https://api.auth.cursedshrine.co.in/swagger-ui.html` |
-| OpenAPI JSON | `https://api.auth.cursedshrine.co.in/v3/api-docs` |
-| OpenAPI YAML | `https://api.auth.cursedshrine.co.in/v3/api-docs.yaml` |
+| Swagger UI | `https://api.auth.sudox1.com/swagger-ui.html` |
+| OpenAPI JSON | `https://api.auth.sudox1.com/v3/api-docs` |
+| OpenAPI YAML | `https://api.auth.sudox1.com/v3/api-docs.yaml` |
 
 Every API response is wrapped in:
 
@@ -161,10 +161,10 @@ Authorization: Bearer <access_token>
 ### Register
 
 ```bash
-curl --request POST https://api.auth.cursedshrine.co.in/api/auth/register \
+curl --request POST https://api.auth.sudox1.com/api/auth/register \
   --header "Content-Type: application/json" \
   --data '{
-    "email": "gojo@cursedshrine.co.in",
+    "email": "gojo@sudox1.com",
     "username": "gojo",
     "password": "domain-expansion",
     "firstName": "Satoru",
@@ -181,7 +181,7 @@ Response:
   "success": true,
   "error": null,
   "data": {
-    "email": "gojo@cursedshrine.co.in",
+    "email": "gojo@sudox1.com",
     "id": "9f2f59f7-4c48-40ef-9834-1f089fb34e67"
   }
 }
@@ -190,10 +190,10 @@ Response:
 ### Verify OTP
 
 ```bash
-curl --request POST https://api.auth.cursedshrine.co.in/api/auth/verify-otp \
+curl --request POST https://api.auth.sudox1.com/api/auth/verify-otp \
   --header "Content-Type: application/json" \
   --data '{
-    "email": "gojo@cursedshrine.co.in",
+    "email": "gojo@sudox1.com",
     "otp": "A1B2C3"
   }'
 ```
@@ -211,10 +211,10 @@ Returns a login-style token payload:
 ### Login
 
 ```bash
-curl --request POST https://api.auth.cursedshrine.co.in/api/auth/login \
+curl --request POST https://api.auth.sudox1.com/api/auth/login \
   --header "Content-Type: application/json" \
   --data '{
-    "email": "gojo@cursedshrine.co.in",
+    "email": "gojo@sudox1.com",
     "password": "domain-expansion"
   }'
 ```
@@ -234,7 +234,7 @@ Response:
 ### Call a Protected Endpoint
 
 ```bash
-curl https://api.auth.cursedshrine.co.in/api/auth/all \
+curl https://api.auth.sudox1.com/api/auth/all \
   --header "Authorization: Bearer <jwt>"
 ```
 
@@ -246,7 +246,7 @@ Cursed Auth signs access tokens with the configured RSA private key.
 
 ```json
 {
-  "sub": "gojo@cursedshrine.co.in",
+  "sub": "gojo@sudox1.com",
   "role": "SUPERUSER",
   "userId": "9f2f59f7-4c48-40ef-9834-1f089fb34e67",
   "iat": 1778913000,
@@ -357,7 +357,7 @@ Recommended service-to-service contract:
 
 | Claim | Meaning | Example |
 | --- | --- | --- |
-| `sub` | User email | `gojo@cursedshrine.co.in` |
+| `sub` | User email | `gojo@sudox1.com` |
 | `userId` | Internal user id | `9f2f59f7-4c48-40ef-9834-1f089fb34e67` |
 | `role` | Role for RBAC | `SUPERUSER` |
 | `exp` | Token expiration | Unix timestamp |

@@ -1,29 +1,114 @@
 {
   "properties": [
     {
-      "name": "jwt-config.JWT_-eXPIRY",
-      "type": "java.lang.String",
-      "description": "JWT token validity duration in milliseconds."
-    },
-    {
-      "name": "jwt-config.JWT_-pUBLIC_-kEY",
-      "type": "java.lang.String",
-      "description": "PEM-encoded RSA public key used to verify JWT signatures."
-    },
-    {
-      "name": "jwt-config.JWT_-pRIVATE_-kEY",
+      "name": "jwt-config.jwt-private-key",
       "type": "java.lang.String",
       "description": "PEM-encoded RSA private key used to sign JWT tokens."
     },
     {
-      "name": "brevo-config.BREVO_-uRL",
+      "name": "jwt-config.jwt-public-key",
+      "type": "java.lang.String",
+      "description": "PEM-encoded RSA public key used to verify JWT signatures."
+    },
+    {
+      "name": "jwt-config.jwt-expiry",
+      "type": "java.lang.Long",
+      "description": "JWT token validity duration in milliseconds."
+    },
+    {
+      "name": "brevo-config.brevo-url",
       "type": "java.lang.String",
       "description": "Brevo SMTP email API endpoint URL."
     },
     {
-      "name": "brevo-config.BREVO_API_KEY",
+      "name": "brevo-config.brevo-api-key",
       "type": "java.lang.String",
-      "description": "Brevo API key used to authenticate email API requests."
+      "description": "Brevo API key for authenticating email API requests."
+    },
+    {
+      "name": "brevo-config.sender.name",
+      "type": "java.lang.String",
+      "description": "Display name of the email sender."
+    },
+    {
+      "name": "brevo-config.sender.email",
+      "type": "java.lang.String",
+      "description": "Email address of the sender."
+    },
+    {
+      "name": "minio.endpoint",
+      "type": "java.lang.String",
+      "description": "MinIO S3-compatible API endpoint URL."
+    },
+    {
+      "name": "minio.public-endpoint",
+      "type": "java.lang.String",
+      "description": "Public CDN/HTTP endpoint for serving uploaded objects."
+    },
+    {
+      "name": "minio.access-key",
+      "type": "java.lang.String",
+      "description": "MinIO access key (username)."
+    },
+    {
+      "name": "minio.secret-key",
+      "type": "java.lang.String",
+      "description": "MinIO secret key (password)."
+    },
+    {
+      "name": "minio.bucket",
+      "type": "java.lang.String",
+      "description": "Default MinIO bucket name for uploads."
+    },
+    {
+      "name": "sso.issuer",
+      "type": "java.lang.String",
+      "description": "OIDC issuer URL. Must end with trailing slash for Auth0 SDK iss validation."
+    },
+    {
+      "name": "sso.login.frontend-url",
+      "type": "java.lang.String",
+      "description": "URL of the Universal Login frontend; /authorize redirects here with ?login_id."
+    },
+    {
+      "name": "sso.login.base-path",
+      "type": "java.lang.String",
+      "description": "Base URL of the login frontend app (without path)."
+    },
+    {
+      "name": "sso.cors.allowed-origins",
+      "type": "java.lang.String",
+      "description": "Comma-separated origins allowed to call OAuth/OIDC and auth endpoints."
+    },
+    {
+      "name": "seed-config.client-id",
+      "type": "java.lang.String",
+      "description": "OAuth2 client ID seeded on first startup."
+    },
+    {
+      "name": "seed-config.admin-email",
+      "type": "java.lang.String",
+      "description": "Admin user email seeded on first startup."
+    },
+    {
+      "name": "seed-config.admin-username",
+      "type": "java.lang.String",
+      "description": "Admin username seeded on first startup."
+    },
+    {
+      "name": "seed-config.admin-password",
+      "type": "java.lang.String",
+      "description": "Admin password seeded on first startup. Defaults to CursedAdmin@7772 if env var absent."
+    },
+    {
+      "name": "seed-config.redirect-uris",
+      "type": "java.lang.String",
+      "description": "Allowed OAuth2 redirect URI(s) for the seeded client."
+    },
+    {
+      "name": "seed-config.logout-uris",
+      "type": "java.lang.String",
+      "description": "Allowed post-logout redirect URI(s) for the seeded client."
     }
   ]
 }

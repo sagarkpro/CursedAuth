@@ -40,17 +40,20 @@ import com.nimbusds.jose.jwk.source.JWKSource;
 import com.nimbusds.jose.proc.SecurityContext;
 
 /**
- * Mints RS256 access/id tokens, issues authorization codes, and issues/rotates refresh
- * tokens. This is the heart of the Auth0-style flow; it deliberately produces Auth0-shaped
- * token responses (snake_case keys, "Bearer", expires_in in seconds) as a Map so the wire
+ * Mints RS256 access/id tokens, issues authorization codes, and issues/rotates
+ * refresh
+ * tokens. This is the heart of the Auth0-style flow; it deliberately produces
+ * Auth0-shaped
+ * token responses (snake_case keys, "Bearer", expires_in in seconds) as a Map
+ * so the wire
  * format is exact and optional fields are simply omitted.
  */
 @Service
 public class TokenService {
 
-    private static final long DEFAULT_ACCESS_TTL = 86400;        // 1 day
-    private static final long DEFAULT_REFRESH_TTL = 1209600;     // 14 days
-    private static final String ROLES_CLAIM = "https://cursedshrine.co.in/roles";
+    private static final long DEFAULT_ACCESS_TTL = 86400; // 1 day
+    private static final long DEFAULT_REFRESH_TTL = 1209600; // 14 days
+    private static final String ROLES_CLAIM = "https://sudox1.com/roles";
 
     private final JwtEncoder jwtEncoder;
     private final AuthorizationCodeRepository authorizationCodeRepository;
@@ -91,7 +94,6 @@ public class TokenService {
                 .codeChallengeMethod(tx.getCodeChallengeMethod())
                 .audience(tx.getAudience())
                 .authTime(authTime)
-                .consumed(false)
                 .createdAt(Instant.now())
                 .build();
         authorizationCodeRepository.save(authCode);
@@ -169,7 +171,8 @@ public class TokenService {
         if (!client.getClientId().equals(existing.getClientId())) {
             throw new OAuthException(OAuthErrors.INVALID_GRANT, "client_id mismatch", HttpStatus.BAD_REQUEST);
         }
-        // reuse detection: a revoked or already-rotated token means theft -> nuke the family
+        // reuse detection: a revoked or already-rotated token means theft -> nuke the
+        // family
         if (existing.isRevoked() || existing.getReplacedByHash() != null) {
             refreshTokenRepository.revokeFamily(existing.getFamilyId());
             throw new OAuthException(OAuthErrors.INVALID_GRANT, "Refresh token reuse detected",

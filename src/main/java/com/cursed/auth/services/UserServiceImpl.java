@@ -51,53 +51,56 @@ public class UserServiceImpl implements UserService {
 	}
 
 	public BaseResponseDTO<RegisterResponseDTO> register(RegisterDto request) {
-		try {
-			if (userRepository.existsByEmail(request.getEmail())) {
-				return BaseResponseDTO.<RegisterResponseDTO>builder()
-						.success(false)
-						.error(ErrorDTO.builder()
-								.message("User already exists")
-								.build())
-						.build();
-			}
-			if (userRepository.existsByUsername(request.getUsername())) {
-				return BaseResponseDTO.<RegisterResponseDTO>builder()
-						.success(false)
-						.error(ErrorDTO.builder()
-								.message("This username is taken by another user")
-								.build())
-						.build();
-			}
-
-			String imgUrl = redisService.getString(request.getEmail() + RedisKeys.USER_PROFILE_IMAGE);
-			User user = User.builder()
-					.createdAt(Instant.now())
-					.email(request.getEmail())
-					.firstName(request.getFirstName())
-					.middleName(request.getMiddleName())
-					.lastName(request.getLastName())
-					.username(request.getUsername())
-					.password(passwordEncoder.encode(request.getPassword()))
-					.role(request.getRole())
-					.profileImage(imgUrl)
-					.build();
-
-			User res = userRepository.save(user);
-
-			generateAndSendOtp(user);
-
+		if (userRepository.existsByEmail(request.getEmail())) {
 			return BaseResponseDTO.<RegisterResponseDTO>builder()
-					.success(true)
-					.data(RegisterResponseDTO.builder()
-							.email(res.getEmail())
-							.id(res.getId())
+					.success(false)
+					.error(ErrorDTO.builder()
+							.message("User already exists")
 							.build())
 					.build();
-		} catch (Exception e) {
-			CursedLogger.error(e.getMessage(), e.getCause());
-			e.printStackTrace();
-			throw e;
 		}
+		if (userRepository.existsByUsername(request.getUsername())) {
+			return BaseResponseDTO.<RegisterResponseDTO>builder()
+					.success(false)
+					.error(ErrorDTO.builder()
+							.message("This username is taken by another user")
+							.build())
+					.build();
+		}
+
+		String imgUrl = redisService.getString(request.getEmail() + RedisKeys.USER_PROFILE_IMAGE);
+		User user = User.builder()
+				.createdAt(Instant.now())
+				.email(request.getEmail())
+				.firstName(request.getFirstName())
+				.middleName(request.getMiddleName())
+				.lastName(request.getLastName())
+				.username(request.getUsername())
+				.password(passwordEncoder.encode(request.getPassword()))
+				.role(request.getRole())
+				.profileImage(imgUrl)
+				.build();
+
+		User res = userRepository.save(user);
+
+		try {
+			generateAndSendOtp(user);
+		} catch (Exception ex) {
+			return BaseResponseDTO.<RegisterResponseDTO>builder()
+					.success(false)
+					.error(ErrorDTO.builder()
+							.message("Failed to send OTP Verification mail")
+							.details(ex.getMessage()).build())
+					.build();
+		}
+
+		return BaseResponseDTO.<RegisterResponseDTO>builder()
+				.success(true)
+				.data(RegisterResponseDTO.builder()
+						.email(res.getEmail())
+						.id(res.getId())
+						.build())
+				.build();
 	}
 
 	@Override
@@ -206,14 +209,23 @@ public class UserServiceImpl implements UserService {
 					.build();
 		}
 		redisService.delete(user.getEmail() + RedisKeys.OTP_VERIFICATION);
-		generateAndSendOtp(user);
+		try {
+			generateAndSendOtp(user);
+		} catch (Exception ex) {
+			return BaseResponseDTO.<String>builder()
+					.success(false)
+					.error(ErrorDTO.builder()
+							.message("Failed to send OTP Verification mail")
+							.details(ex.getMessage()).build())
+					.build();
+		}
 		return BaseResponseDTO.<String>builder()
 				.success(true)
 				.data("OTP resent successfully")
 				.build();
 	}
 
-	private void generateAndSendOtp(User user) {
+	private void generateAndSendOtp(User user) throws Exception {
 		String otp = RandomStringUtils.secure().nextAlphanumeric(6).toUpperCase();
 		CursedLogger.info("OTP for user " + user.getEmail() + " is: " + otp);
 		redisService.save(user.getEmail() + RedisKeys.OTP_VERIFICATION, objectMapper.valueToTree(
@@ -221,7 +233,7 @@ public class UserServiceImpl implements UserService {
 		sendEmailVerificationOtp(user, otp);
 	}
 
-	private boolean sendEmailVerificationOtp(User user, String otp) {
+	private boolean sendEmailVerificationOtp(User user, String otp) throws Exception {
 		var request = new SendOTPVerificationMail(user.getEmail(), user.getDisplayName(), otp);
 		var response = brevoEmailClient.sendEmailVerificationOTP(request);
 		if (response != null && !response.get("messageId").isEmpty()) {
