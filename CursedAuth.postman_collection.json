@@ -1,0 +1,541 @@
+{
+  "info": {
+    "_postman_id": "f7e6d5c4-b3a2-4190-8f7e-6d5c4b3a2190",
+    "name": "CursedAuth — Auth0-style OIDC",
+    "description": "Simulates the full Auth0-style authorization-code + PKCE login flow against the CursedAuth IdP.\n\nHOW TO USE\n1. Import this file into Postman.\n2. Edit the collection variables (base_url, client_id, redirect_uri, email, password) if needed — defaults match the verification run.\n3. (Once) Run '0. Setup' → Register OAuth Client. Register User may return 500 because Brevo email is IP-allowlisted; the user is still saved — mark it verified manually:\n   docker exec cursed-mongo mongosh -u admin -p Auth7772 --authenticationDatabase admin auth_db --eval 'db.users.updateOne({email:\"verify-test@example.com\"},{$set:{verified:true,isActive:true}})'\n4. Run the 'Login Flow' folder top-to-bottom (or use the Collection Runner on that folder). Each request stores variables (login_id, auth_code, tokens) for the next.\n\nNOTE: requests that must NOT follow redirects (Authorize, Logout) set protocolProfileBehavior.followRedirects=false so the 302 Location can be read. PKCE is generated in the Authorize pre-request script using CryptoJS.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:7772" },
+    { "key": "client_id", "value": "spa-test" },
+    { "key": "client_secret", "value": "" },
+    { "key": "redirect_uri", "value": "http://localhost:3000/callback" },
+    { "key": "post_logout_redirect", "value": "http://localhost:3000" },
+    { "key": "scope", "value": "openid profile email offline_access" },
+    { "key": "email", "value": "verify-test@example.com" },
+    { "key": "password", "value": "Password123!" },
+    { "key": "code_verifier", "value": "" },
+    { "key": "code_challenge", "value": "" },
+    { "key": "state", "value": "" },
+    { "key": "nonce", "value": "" },
+    { "key": "login_id", "value": "" },
+    { "key": "auth_code", "value": "" },
+    { "key": "prev_refresh_token", "value": "" },
+    { "key": "access_token", "value": "" },
+    { "key": "id_token", "value": "" },
+    { "key": "refresh_token", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "0. Setup (run once)",
+      "item": [
+        {
+          "name": "Register OAuth Client",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('client created (200) or already exists (409)', function () {",
+                  "  pm.expect([200, 409]).to.include(pm.response.code);",
+                  "});",
+                  "console.log('Register client status:', pm.response.code, pm.response.text());"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clientId\": \"{{client_id}}\",\n  \"clientSecret\": \"{{client_secret}}\",\n  \"redirectUris\": [\"{{redirect_uri}}\"],\n  \"scopes\": [\"openid\", \"profile\", \"email\", \"offline_access\"],\n  \"grantTypes\": [\"authorization_code\", \"refresh_token\"],\n  \"authenticationMethods\": [\"none\"],\n  \"postLogoutRedirectUris\": [\"{{post_logout_redirect}}\"],\n  \"accessTokenTtlSeconds\": 86400,\n  \"refreshTokenTtlSeconds\": 1209600,\n  \"reuseRefreshTokens\": false,\n  \"requirePkce\": true,\n  \"requireConsent\": false,\n  \"status\": \"ACTIVE\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/client/register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "client", "register"]
+            },
+            "description": "Registers a public SPA client (auth method 'none' + PKCE). Primitive long TTL fields are required by the DTO."
+          }
+        },
+        {
+          "name": "Register User (verify manually after)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// May be 200, or 500 if Brevo email is IP-allowlisted in this environment.",
+                  "// Either way the user row is persisted; mark it verified via mongosh (see collection description).",
+                  "console.log('Register user status:', pm.response.code, pm.response.text());",
+                  "pm.test('request reached server', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([200, 400, 409, 500]);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"username\": \"verifytest\",\n  \"password\": \"{{password}}\",\n  \"firstName\": \"Veri\",\n  \"lastName\": \"Fier\",\n  \"role\": \"VIEWER\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "register"]
+            },
+            "description": "Creates the user. Email OTP delivery may fail (Brevo IP allowlist) returning 500, but the user is saved. Mark verified=true,isActive=true in Mongo before running the login flow."
+          }
+        }
+      ]
+    },
+    {
+      "name": "OIDC Metadata",
+      "item": [
+        {
+          "name": "Discovery (.well-known/openid-configuration)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', function () { pm.response.to.have.status(200); });",
+                  "var d = pm.response.json();",
+                  "pm.test('issuer ends with trailing slash (Auth0 SDK requirement)', function () {",
+                  "  pm.expect(d.issuer).to.match(/\\/$/);",
+                  "});",
+                  "pm.test('S256 PKCE advertised', function () {",
+                  "  pm.expect(d.code_challenge_methods_supported).to.include('S256');",
+                  "});",
+                  "pm.test('RS256 id_token signing', function () {",
+                  "  pm.expect(d.id_token_signing_alg_values_supported).to.include('RS256');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/.well-known/openid-configuration",
+              "host": ["{{base_url}}"],
+              "path": [".well-known", "openid-configuration"]
+            }
+          }
+        },
+        {
+          "name": "JWKS (.well-known/jwks.json)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', function () { pm.response.to.have.status(200); });",
+                  "var j = pm.response.json();",
+                  "pm.test('has an RS256 signing key with a kid', function () {",
+                  "  pm.expect(j.keys).to.be.an('array').that.is.not.empty;",
+                  "  var k = j.keys[0];",
+                  "  pm.expect(k.kty).to.eql('RSA');",
+                  "  pm.expect(k.use).to.eql('sig');",
+                  "  pm.expect(k.alg).to.eql('RS256');",
+                  "  pm.expect(k.kid).to.be.ok;",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/.well-known/jwks.json",
+              "host": ["{{base_url}}"],
+              "path": [".well-known", "jwks.json"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Login Flow (run in order)",
+      "item": [
+        {
+          "name": "1. Authorize — generate PKCE + get login_id",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Generate a PKCE pair + state + nonce, exactly like @auth0/auth0-spa-js does.",
+                  "function b64url(wordArray) {",
+                  "  return CryptoJS.enc.Base64.stringify(wordArray)",
+                  "    .replace(/\\+/g, '-').replace(/\\//g, '_').replace(/=+$/, '');",
+                  "}",
+                  "function randStr(n) {",
+                  "  var c = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~';",
+                  "  var s = '';",
+                  "  for (var i = 0; i < n; i++) s += c.charAt(Math.floor(Math.random() * c.length));",
+                  "  return s;",
+                  "}",
+                  "var verifier = randStr(64);",
+                  "var challenge = b64url(CryptoJS.SHA256(verifier));",
+                  "pm.collectionVariables.set('code_verifier', verifier);",
+                  "pm.collectionVariables.set('code_challenge', challenge);",
+                  "pm.collectionVariables.set('state', 'st-' + randStr(12));",
+                  "pm.collectionVariables.set('nonce', 'no-' + randStr(12));",
+                  "console.log('PKCE code_challenge =', challenge);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('302 redirect to the login page', function () {",
+                  "  pm.expect(pm.response.code).to.eql(302);",
+                  "});",
+                  "var loc = pm.response.headers.get('Location') || '';",
+                  "console.log('Location:', loc);",
+                  "var m = loc.match(/login_id=([^&]+)/);",
+                  "pm.test('login_id present in redirect', function () {",
+                  "  pm.expect(m, 'no login_id in Location: ' + loc).to.not.be.null;",
+                  "});",
+                  "if (m) {",
+                  "  pm.collectionVariables.set('login_id', decodeURIComponent(m[1]));",
+                  "  console.log('login_id =', m[1]);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "protocolProfileBehavior": { "followRedirects": false },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/authorize?response_type=code&client_id={{client_id}}&redirect_uri={{redirect_uri}}&scope={{scope}}&state={{state}}&nonce={{nonce}}&code_challenge={{code_challenge}}&code_challenge_method=S256",
+              "host": ["{{base_url}}"],
+              "path": ["authorize"],
+              "query": [
+                { "key": "response_type", "value": "code" },
+                { "key": "client_id", "value": "{{client_id}}" },
+                { "key": "redirect_uri", "value": "{{redirect_uri}}" },
+                { "key": "scope", "value": "{{scope}}" },
+                { "key": "state", "value": "{{state}}" },
+                { "key": "nonce", "value": "{{nonce}}" },
+                { "key": "code_challenge", "value": "{{code_challenge}}" },
+                { "key": "code_challenge_method", "value": "S256" }
+              ]
+            },
+            "description": "OAuth 2.1 authorization endpoint. Returns 302 to /login?login_id=... (do NOT follow redirects, or you'll land on the non-running React app)."
+          }
+        },
+        {
+          "name": "2. Login — get authorization code",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('login 200', function () { pm.response.to.have.status(200); });",
+                  "var j = pm.response.json();",
+                  "pm.test('success with redirectUri', function () {",
+                  "  pm.expect(j.success, JSON.stringify(j)).to.be.true;",
+                  "  pm.expect(j.data && j.data.redirectUri).to.be.ok;",
+                  "});",
+                  "var uri = (j.data && j.data.redirectUri) || '';",
+                  "console.log('redirectUri =', uri);",
+                  "var codeM = uri.match(/[?&]code=([^&]+)/);",
+                  "var stateM = uri.match(/[?&]state=([^&]+)/);",
+                  "var code = codeM ? decodeURIComponent(codeM[1]) : '';",
+                  "pm.collectionVariables.set('auth_code', code);",
+                  "pm.test('authorization code present', function () { pm.expect(code).to.be.ok; });",
+                  "pm.test('state echoed back matches', function () {",
+                  "  pm.expect(stateM ? decodeURIComponent(stateM[1]) : null).to.eql(pm.collectionVariables.get('state'));",
+                  "});",
+                  "console.log('auth_code =', code);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\",\n  \"loginId\": \"{{login_id}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "auth", "login"]
+            },
+            "description": "JSON login. Because a JSON fetch cannot follow a 302, the server returns the client redirect URL (with code + state) in the body. The React login app would window.location.assign() to it."
+          }
+        },
+        {
+          "name": "3. Token — exchange code (PKCE)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('token 200', function () { pm.response.to.have.status(200); });",
+                  "var t = pm.response.json();",
+                  "pm.collectionVariables.set('access_token', t.access_token || '');",
+                  "pm.collectionVariables.set('id_token', t.id_token || '');",
+                  "pm.collectionVariables.set('refresh_token', t.refresh_token || '');",
+                  "pm.test('has access_token + id_token', function () {",
+                  "  pm.expect(t.access_token, 'no access_token').to.be.ok;",
+                  "  pm.expect(t.id_token, 'no id_token').to.be.ok;",
+                  "});",
+                  "pm.test('token_type Bearer, expires_in seconds', function () {",
+                  "  pm.expect(t.token_type).to.eql('Bearer');",
+                  "  pm.expect(t.expires_in).to.be.a('number');",
+                  "});",
+                  "pm.test('offline_access -> refresh_token returned', function () {",
+                  "  pm.expect(t.refresh_token, 'no refresh_token').to.be.ok;",
+                  "});",
+                  "function decodePayload(jwt) {",
+                  "  var p = jwt.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');",
+                  "  while (p.length % 4) p += '=';",
+                  "  return JSON.parse(CryptoJS.enc.Utf8.stringify(CryptoJS.enc.Base64.parse(p)));",
+                  "}",
+                  "if (t.id_token) {",
+                  "  var c = decodePayload(t.id_token);",
+                  "  console.log('id_token claims:', JSON.stringify(c, null, 2));",
+                  "  pm.test('iss has trailing slash', function () { pm.expect(c.iss).to.match(/\\/$/); });",
+                  "  pm.test('nonce echoed', function () { pm.expect(c.nonce).to.eql(pm.collectionVariables.get('nonce')); });",
+                  "  pm.test('aud contains client_id', function () {",
+                  "    var aud = Array.isArray(c.aud) ? c.aud : [c.aud];",
+                  "    pm.expect(aud).to.include(pm.collectionVariables.get('client_id'));",
+                  "  });",
+                  "  pm.test('sub present', function () { pm.expect(c.sub).to.be.ok; });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"grant_type\": \"authorization_code\",\n  \"client_id\": \"{{client_id}}\",\n  \"code\": \"{{auth_code}}\",\n  \"code_verifier\": \"{{code_verifier}}\",\n  \"redirect_uri\": \"{{redirect_uri}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/oauth/token",
+              "host": ["{{base_url}}"],
+              "path": ["oauth", "token"]
+            },
+            "description": "Auth0-style token endpoint with a JSON body (what @auth0/auth0-spa-js sends). Verifies PKCE and returns access_token + id_token + refresh_token."
+          }
+        },
+        {
+          "name": "4. UserInfo",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('userinfo 200', function () { pm.response.to.have.status(200); });",
+                  "var u = pm.response.json();",
+                  "pm.test('has sub + email', function () {",
+                  "  pm.expect(u.sub).to.be.ok;",
+                  "  pm.expect(u.email).to.be.ok;",
+                  "});",
+                  "console.log('userinfo:', JSON.stringify(u, null, 2));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [ { "key": "Authorization", "value": "Bearer {{access_token}}" } ],
+            "url": {
+              "raw": "{{base_url}}/userinfo",
+              "host": ["{{base_url}}"],
+              "path": ["userinfo"]
+            },
+            "description": "OIDC UserInfo, protected by the resource server. Proves the minted RS256 access token validates."
+          }
+        },
+        {
+          "name": "5. Refresh token (rotate)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Stash the current refresh token so the negative test can prove reuse-detection.",
+                  "pm.collectionVariables.set('prev_refresh_token', pm.collectionVariables.get('refresh_token'));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('refresh 200', function () { pm.response.to.have.status(200); });",
+                  "var t = pm.response.json();",
+                  "pm.test('rotated: new refresh_token differs from old', function () {",
+                  "  pm.expect(t.refresh_token, 'no refresh_token').to.be.ok;",
+                  "  pm.expect(t.refresh_token).to.not.eql(pm.collectionVariables.get('prev_refresh_token'));",
+                  "});",
+                  "pm.test('new access_token issued', function () { pm.expect(t.access_token).to.be.ok; });",
+                  "if (t.access_token) pm.collectionVariables.set('access_token', t.access_token);",
+                  "if (t.id_token) pm.collectionVariables.set('id_token', t.id_token);",
+                  "if (t.refresh_token) pm.collectionVariables.set('refresh_token', t.refresh_token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"grant_type\": \"refresh_token\",\n  \"client_id\": \"{{client_id}}\",\n  \"refresh_token\": \"{{refresh_token}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/oauth/token",
+              "host": ["{{base_url}}"],
+              "path": ["oauth", "token"]
+            },
+            "description": "Refresh-token grant. Rotates the refresh token (old one is revoked) and returns a fresh access + id token."
+          }
+        },
+        {
+          "name": "6. Logout",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('302 redirect to returnTo', function () {",
+                  "  pm.expect(pm.response.code).to.eql(302);",
+                  "});",
+                  "var loc = pm.response.headers.get('Location') || '';",
+                  "pm.test('redirects to the registered post-logout URI', function () {",
+                  "  pm.expect(loc).to.eql(pm.collectionVariables.get('post_logout_redirect'));",
+                  "});",
+                  "console.log('logout -> Location:', loc);"
+                ]
+              }
+            }
+          ],
+          "protocolProfileBehavior": { "followRedirects": false },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v2/logout?client_id={{client_id}}&returnTo={{post_logout_redirect}}",
+              "host": ["{{base_url}}"],
+              "path": ["v2", "logout"],
+              "query": [
+                { "key": "client_id", "value": "{{client_id}}" },
+                { "key": "returnTo", "value": "{{post_logout_redirect}}" }
+              ]
+            },
+            "description": "Validates returnTo against the client's postLogoutRedirectUris and 302s there. Do NOT follow redirects."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Negative tests (optional)",
+      "item": [
+        {
+          "name": "Replay authorization code -> 400 invalid_grant",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Run AFTER '3. Token'. The code was already consumed (single-use).",
+                  "pm.test('400', function () { pm.response.to.have.status(400); });",
+                  "var e = pm.response.json();",
+                  "pm.test('invalid_grant', function () { pm.expect(e.error).to.eql('invalid_grant'); });",
+                  "console.log('error:', JSON.stringify(e));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"grant_type\": \"authorization_code\",\n  \"client_id\": \"{{client_id}}\",\n  \"code\": \"{{auth_code}}\",\n  \"code_verifier\": \"{{code_verifier}}\",\n  \"redirect_uri\": \"{{redirect_uri}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/oauth/token",
+              "host": ["{{base_url}}"],
+              "path": ["oauth", "token"]
+            },
+            "description": "Re-submits the already-used authorization code. Proves single-use enforcement."
+          }
+        },
+        {
+          "name": "Replay OLD refresh token -> 400 reuse detected",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Run AFTER '5. Refresh token (rotate)'. Uses the pre-rotation refresh token.",
+                  "pm.test('400', function () { pm.response.to.have.status(400); });",
+                  "var e = pm.response.json();",
+                  "pm.test('invalid_grant (reuse detected)', function () {",
+                  "  pm.expect(e.error).to.eql('invalid_grant');",
+                  "});",
+                  "console.log('error:', JSON.stringify(e));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [ { "key": "Content-Type", "value": "application/json" } ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"grant_type\": \"refresh_token\",\n  \"client_id\": \"{{client_id}}\",\n  \"refresh_token\": \"{{prev_refresh_token}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/oauth/token",
+              "host": ["{{base_url}}"],
+              "path": ["oauth", "token"]
+            },
+            "description": "Re-submits the rotated-away refresh token. Proves reuse detection (and the whole token family is revoked)."
+          }
+        }
+      ]
+    }
+  ]
+}
