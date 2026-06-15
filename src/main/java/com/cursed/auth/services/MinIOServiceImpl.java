@@ -27,9 +27,9 @@ public class MinIOServiceImpl implements MinIOService {
 	@Override
 	public String upload(MultipartFile file, String folder) throws IOException {
 
-		String fileName = UUID.randomUUID().toString().replaceAll("-", "").substring(0, 10)
+		String fileName = file.getOriginalFilename()
 				+ "-"
-				+ file.getOriginalFilename();
+				+ UUID.randomUUID().toString().replaceAll("-", "").substring(0, 10);
 
 		String key = folder + "/" + fileName;
 
