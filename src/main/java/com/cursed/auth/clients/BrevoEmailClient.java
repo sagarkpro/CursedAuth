@@ -6,12 +6,17 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.web.client.RestClient;
 
-import com.cursed.auth.domain.EmailRecipient;
-import com.cursed.auth.domain.EmailSender;
-import com.cursed.auth.domain.SendEmailRequest;
-import com.cursed.auth.domain.VerifyOtpEmailTemplate;
 import com.cursed.auth.logging.CursedLogger;
-import com.cursed.auth.records.SendOTPVerificationMail;
+import com.cursed.auth.constants.EmailTemplatePaths;
+import com.cursed.auth.domain.SendForgotPasswordEmail;
+import com.cursed.auth.domain.SendOTPVerificationMail;
+import com.cursed.auth.domain.emailTemplates.BaseEmailTemplate;
+import com.cursed.auth.domain.emailTemplates.EmailRecipient;
+import com.cursed.auth.domain.emailTemplates.EmailRequest;
+import com.cursed.auth.domain.emailTemplates.EmailSender;
+import com.cursed.auth.domain.emailTemplates.ForgotPasswordEmailTemplate;
+import com.cursed.auth.domain.emailTemplates.SendEmailRequest;
+import com.cursed.auth.domain.emailTemplates.VerifyOtpEmailTemplate;
 
 import freemarker.template.Configuration;
 import freemarker.template.Template;
@@ -56,20 +61,16 @@ public class BrevoEmailClient {
 				.build();
 	}
 
-	public JsonNode sendEmailVerificationOTP(SendOTPVerificationMail request) throws Exception {
-		String emailContent = generateOtpVerificationTemplate(VerifyOtpEmailTemplate.builder()
-				.otp(request.OTP())
-				.receiverName(request.receiverName())
-				.ssoBasePath(SSO_BASEPATH)
-				.tmYear(java.time.Year.now().getValue())
-				.build());
-
+	public JsonNode sendEmail(EmailRequest request) throws Exception {
 		SendEmailRequest emailRequest = SendEmailRequest.builder()
 				.sender(EmailSender.builder().name(SENDER_NAME).email(SENDER_EMAIL).build())
 				.to(List.of(
-						EmailRecipient.builder().email(request.receiverEmail()).name(request.receiverName()).build()))
-				.subject("Cursed Auth - Email Verification OTP")
-				.htmlContent(emailContent)
+						EmailRecipient.builder()
+								.email(request.getRecipientEmail())
+								.name(request.getRecipientName())
+								.build()))
+				.subject(request.getSubject())
+				.htmlContent(request.getHtmlContent())
 				.build();
 
 		Map<String, Object> body = mapper.convertValue(emailRequest, new TypeReference<Map<String, Object>>() {
@@ -80,12 +81,47 @@ public class BrevoEmailClient {
 				.retrieve()
 				.body(JsonNode.class);
 
-		CursedLogger.info("SendVerificationOTPEmail API result:" + response.toPrettyString());
+		CursedLogger.info("SendEmail API result:" + response.toPrettyString());
 		return response;
 	}
 
-	private String generateOtpVerificationTemplate(VerifyOtpEmailTemplate req) throws Exception {
-		Template template = freeMarkerConfig.getTemplate("emails/verify-otp.html");
+	public JsonNode sendForgotPassword(SendForgotPasswordEmail request) throws Exception {
+		String htmlContent = generateEmailTemplate(ForgotPasswordEmailTemplate.builder()
+				.title("Email Verification OTP")
+				.token(request.getToken())
+				.email(request.getEmail())
+				.receiverName(request.getReceiverName())
+				.ssoBasePath(SSO_BASEPATH)
+				.tmYear(java.time.Year.now().getValue())
+				.build(), EmailTemplatePaths.FORGOT_PASSWORD_MAIL);
+
+		return sendEmail(EmailRequest.builder()
+				.recipientEmail(request.getReceiverEmail())
+				.recipientName(request.getReceiverName())
+				.subject("Cursed Auth - Password Recovery")
+				.htmlContent(htmlContent)
+				.build());
+	}
+
+	public JsonNode sendEmailVerificationOTP(SendOTPVerificationMail request) throws Exception {
+		String htmlContent = generateEmailTemplate(VerifyOtpEmailTemplate.builder()
+				.title("Email Verification OTP")
+				.otp(request.getOTP())
+				.receiverName(request.getReceiverName())
+				.ssoBasePath(SSO_BASEPATH)
+				.tmYear(java.time.Year.now().getValue())
+				.build(), EmailTemplatePaths.VERIFY_OTP_MAIL);
+
+		return sendEmail(EmailRequest.builder()
+				.recipientEmail(request.getReceiverEmail())
+				.recipientName(request.getReceiverName())
+				.subject("Cursed Auth - Email Verification OTP")
+				.htmlContent(htmlContent)
+				.build());
+	}
+
+	private String generateEmailTemplate(BaseEmailTemplate req, String emailPath) throws Exception {
+		Template template = freeMarkerConfig.getTemplate(emailPath);
 		var templateVars = mapper.convertValue(req, new TypeReference<Map<String, Object>>() {
 		});
 		return FreeMarkerTemplateUtils.processTemplateIntoString(template, templateVars);

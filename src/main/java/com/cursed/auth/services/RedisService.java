@@ -18,7 +18,7 @@ public class RedisService {
     }
 
     public void save(String key, JsonNode json, long minutes) {
-        redisTemplate.opsForValue().set(key, json, minutes);
+        redisTemplate.opsForValue().set(key, json, Duration.ofMinutes(minutes));
     }
 
     public void save(String key, JsonNode json) {
@@ -26,7 +26,7 @@ public class RedisService {
     }
 
     public void save(String key, String value, long minutes) {
-        redisTemplate.opsForValue().set(key, StringNode.valueOf(value), minutes);
+        redisTemplate.opsForValue().set(key, StringNode.valueOf(value), Duration.ofMinutes(minutes));
     }
 
     public void save(String key, String value) {
@@ -41,8 +41,20 @@ public class RedisService {
         return redisTemplate.opsForValue().get(key);
     }
 
+    public JsonNode consumeOnce(String key) {
+        return redisTemplate.opsForValue().getAndDelete(key);
+    }
+
     public String getString(String key) {
         JsonNode res = redisTemplate.opsForValue().get(key);
+        if (res != null && !res.isNull() && res.isString()) {
+            return res.asString();
+        }
+        return null;
+    }
+
+    public String consumeOnceString(String key) {
+        JsonNode res = redisTemplate.opsForValue().getAndDelete(key);
         if (res != null && !res.isNull() && res.isString()) {
             return res.asString();
         }

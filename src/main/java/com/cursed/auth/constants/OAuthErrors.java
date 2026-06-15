@@ -1,9 +1,13 @@
 package com.cursed.auth.constants;
 
-/** RFC 6749 / Auth0 OAuth error codes used in the {error, error_description} JSON bodies. */
+/**
+ * RFC 6749 / Auth0 OAuth error codes used in the {error, error_description}
+ * JSON bodies.
+ */
 public final class OAuthErrors {
 
     private OAuthErrors() {
+        super();
     }
 
     public static final String INVALID_REQUEST = "invalid_request";
