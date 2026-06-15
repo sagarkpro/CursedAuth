@@ -1,5 +1,8 @@
 package com.cursed.auth.utils;
 
+import java.util.Base64;
+import java.util.UUID;
+
 import org.springframework.http.ResponseEntity;
 
 import com.cursed.auth.dtos.response.BaseResponseDTO;
@@ -16,5 +19,10 @@ public class CommonUtils {
             return ResponseEntity.status(response.getError().getStatus()).body(response);
         }
         return ResponseEntity.badRequest().body(response);
+    }
+
+    public static String generateSuperRandomString() {
+        String str = UUID.randomUUID().toString().replace("-", "");
+        return Base64.getUrlEncoder().encodeToString(str.getBytes());
     }
 }

@@ -16,6 +16,7 @@ import com.cursed.auth.clients.BrevoEmailClient;
 import com.cursed.auth.constants.MinIO;
 import com.cursed.auth.constants.RedisKeys;
 import com.cursed.auth.dtos.RegisterDto;
+import com.cursed.auth.dtos.UpdatePasswordDto;
 import com.cursed.auth.dtos.VerifyOTPDto;
 import com.cursed.auth.dtos.response.BaseResponseDTO;
 import com.cursed.auth.dtos.response.ErrorDTO;
@@ -24,9 +25,11 @@ import com.cursed.auth.dtos.response.RegisterResponseDTO;
 import com.cursed.auth.dtos.response.UserResponseDTO;
 import com.cursed.auth.entities.User;
 import com.cursed.auth.logging.CursedLogger;
-import com.cursed.auth.records.RedisOTPVerification;
-import com.cursed.auth.records.SendOTPVerificationMail;
+import com.cursed.auth.domain.RedisOTPVerification;
+import com.cursed.auth.domain.SendForgotPasswordEmail;
+import com.cursed.auth.domain.SendOTPVerificationMail;
 import com.cursed.auth.repository.UserRepository;
+import com.cursed.auth.utils.CommonUtils;
 
 import tools.jackson.databind.ObjectMapper;
 
@@ -170,7 +173,7 @@ public class UserServiceImpl implements UserService {
 			var otpVerification = redisService.getJson(user.getEmail() + RedisKeys.OTP_VERIFICATION);
 			var otpVerificationRecord = objectMapper.treeToValue(otpVerification,
 					RedisOTPVerification.class);
-			if (otpVerificationRecord.otp().equals(request.getOtp())) {
+			if (otpVerificationRecord.getOtp().equals(request.getOtp())) {
 				user.setVerified(true);
 				userRepository.save(user);
 				// String accessToken = jwtUtils.generateToken(user);
@@ -225,16 +228,66 @@ public class UserServiceImpl implements UserService {
 				.build();
 	}
 
+	@Override
+	public BaseResponseDTO resetPassword(String email) {
+		User user = userRepository.findByEmail(email);
+		if (user != null) {
+			String superRandomToken = CommonUtils.generateSuperRandomString();
+			redisService.save(email + RedisKeys.PASSWORD_RESET, superRandomToken, 10);
+			try {
+				brevoEmailClient.sendForgotPassword(SendForgotPasswordEmail
+						.builder()
+						.email(email)
+						.receiverEmail(email)
+						.receiverName(user.getDisplayName())
+						.token(superRandomToken)
+						.build());
+			} catch (Exception ex) {
+				return BaseResponseDTO.<String>builder()
+						.success(false)
+						.error(ErrorDTO.builder()
+								.message("Failed to send password recovery mail")
+								.details(ex.getMessage()).build())
+						.build();
+			}
+		}
+		return BaseResponseDTO.builder().success(true).build();
+	}
+
+	@Override
+	public BaseResponseDTO updatePassword(UpdatePasswordDto request) {
+		User user = userRepository.findByEmail(request.getEmail());
+		if (user != null) {
+			String key = request.getEmail() + RedisKeys.PASSWORD_RESET;
+			String token = redisService.consumeOnceString(key);
+			if (StringUtils.isNotBlank(token) && request.getToken().equals(token)) {
+				String newPassword = passwordEncoder.encode(request.getPassword());
+				user.setPassword(newPassword);
+				userRepository.save(user);
+				return BaseResponseDTO.builder().success(true).build();
+			}
+		}
+		return BaseResponseDTO
+				.builder()
+				.success(false)
+				.error(ErrorDTO
+						.builder()
+						.message("Invalid token")
+						.build())
+				.build();
+	}
+
 	private void generateAndSendOtp(User user) throws Exception {
 		String otp = RandomStringUtils.secure().nextAlphanumeric(6).toUpperCase();
 		CursedLogger.info("OTP for user " + user.getEmail() + " is: " + otp);
 		redisService.save(user.getEmail() + RedisKeys.OTP_VERIFICATION, objectMapper.valueToTree(
-				new RedisOTPVerification(otp, user.getEmail())));
+				RedisOTPVerification.builder().otp(otp).email(user.getEmail()).build()));
 		sendEmailVerificationOtp(user, otp);
 	}
 
 	private boolean sendEmailVerificationOtp(User user, String otp) throws Exception {
-		var request = new SendOTPVerificationMail(user.getEmail(), user.getDisplayName(), otp);
+		var request = SendOTPVerificationMail.builder().receiverEmail(user.getEmail())
+				.receiverName(user.getDisplayName()).OTP(otp).build();
 		var response = brevoEmailClient.sendEmailVerificationOTP(request);
 		if (response != null && !response.get("messageId").isEmpty()) {
 			return true;

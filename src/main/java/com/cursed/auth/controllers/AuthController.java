@@ -12,6 +12,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -23,6 +24,7 @@ import org.springframework.web.multipart.MultipartFile;
 import com.cursed.auth.dtos.LoginDto;
 import com.cursed.auth.dtos.RegisterDto;
 import com.cursed.auth.dtos.ResendOTPDto;
+import com.cursed.auth.dtos.UpdatePasswordDto;
 import com.cursed.auth.dtos.VerifyOTPDto;
 import com.cursed.auth.dtos.response.BaseResponseDTO;
 import com.cursed.auth.dtos.response.ErrorDTO;
@@ -104,10 +106,23 @@ public class AuthController {
         return CommonUtils.handleResponse(userService.resendOtp(request.getEmail()));
     }
 
+    @PostMapping("{email}/help-a-goldfish-find-its-password")
+    public ResponseEntity<BaseResponseDTO> resetPassword(@PathVariable String email) {
+        return CommonUtils.handleResponse(userService.resetPassword(email));
+    }
+
+    @PatchMapping("/update-password")
+    public ResponseEntity<BaseResponseDTO> updatePassword(@RequestBody @Valid UpdatePasswordDto request) {
+        return CommonUtils.handleResponse(userService.updatePassword(request));
+    }
+
     /**
-     * OAuth authorization-code login. Resolves the login transaction, authenticates the
-     * user (reusing the standard credential checks), issues a single-use authorization
-     * code, and returns the client redirect URL in the body so the login app can navigate
+     * OAuth authorization-code login. Resolves the login transaction, authenticates
+     * the
+     * user (reusing the standard credential checks), issues a single-use
+     * authorization
+     * code, and returns the client redirect URL in the body so the login app can
+     * navigate
      * (a JSON fetch cannot follow a 302).
      */
     private ResponseEntity<BaseResponseDTO<Map<String, String>>> completeOAuthLogin(LoginDto request) {

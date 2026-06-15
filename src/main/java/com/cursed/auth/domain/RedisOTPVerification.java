@@ -6,10 +6,10 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
+@Builder
 @AllArgsConstructor
 @NoArgsConstructor
-@Builder
-public class EmailSender {
-    private String name;
+public class RedisOTPVerification {
+    private String otp;
     private String email;
 }

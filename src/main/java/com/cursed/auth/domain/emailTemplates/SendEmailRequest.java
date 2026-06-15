@@ -1,4 +1,4 @@
-package com.cursed.auth.domain;
+package com.cursed.auth.domain.emailTemplates;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

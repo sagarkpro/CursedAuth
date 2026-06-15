@@ -6,12 +6,11 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
+@Builder
 @AllArgsConstructor
 @NoArgsConstructor
-@Builder
-public class VerifyOtpEmailTemplate {
-    private String receiverName;
-    private String otp;
-    private String ssoBasePath;
-    private int tmYear;
+public class SendOTPVerificationMail {
+    String receiverEmail;
+    String receiverName;
+    String OTP;
 }
