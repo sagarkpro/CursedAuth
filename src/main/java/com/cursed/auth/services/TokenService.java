@@ -246,13 +246,19 @@ public class TokenService {
         String aud = StringUtils.isNotBlank(audience) ? audience : client.getClientId();
         JwtClaimsSet.Builder claims = JwtClaimsSet.builder()
                 .issuer(issuer)
-                .subject(user.getId())
+                .subject(user.getEmail())
                 .audience(List.of(aud))
                 .issuedAt(now)
                 .expiresAt(now.plusSeconds(ttl))
                 .id(UUID.randomUUID().toString())
                 .claim("scope", scopes == null ? "" : String.join(" ", scopes))
-                .claim("azp", client.getClientId());
+                .claim("azp", client.getClientId())
+                .claim("name", user.getDisplayName());
+
+        if (StringUtils.isNotBlank(user.getProfileImage())) {
+            claims.claim("picture", user.getProfileImage());
+        }
+
         if (user.getRole() != null) {
             claims.claim(ROLES_CLAIM, List.of(user.getRole().toString()));
         }
@@ -263,7 +269,7 @@ public class TokenService {
             String nonce, Instant now, Instant authTime) {
         JwtClaimsSet.Builder claims = JwtClaimsSet.builder()
                 .issuer(issuer)
-                .subject(user.getId())
+                .subject(user.getEmail())
                 .audience(List.of(client.getClientId()))
                 .issuedAt(now)
                 .expiresAt(now.plusSeconds(accessTtl(client)))
