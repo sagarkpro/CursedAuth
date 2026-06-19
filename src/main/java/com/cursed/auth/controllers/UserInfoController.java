@@ -39,7 +39,7 @@ public class UserInfoController {
     @GetMapping(value = "/userinfo", produces = MediaType.APPLICATION_JSON_VALUE)
     @Operation(summary = "UserInfo (Bearer access token)")
     public ResponseEntity<Map<String, Object>> userinfo(@AuthenticationPrincipal Jwt jwt) {
-        User user = userRepository.findById(jwt.getSubject()).orElse(null);
+        User user = userRepository.findByEmail(jwt.getSubject());
         if (user == null) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
@@ -48,7 +48,7 @@ public class UserInfoController {
         boolean hasEmail = scope != null && scope.contains("email");
 
         Map<String, Object> claims = new LinkedHashMap<>();
-        claims.put("sub", user.getId());
+        claims.put("sub", user.getEmail());
         if (hasProfile) {
             claims.put("name", user.getDisplayName());
             if (StringUtils.isNotBlank(user.getFirstName())) {
