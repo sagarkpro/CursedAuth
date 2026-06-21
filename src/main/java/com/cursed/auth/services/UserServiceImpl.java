@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.apache.commons.io.FilenameUtils;
 import org.apache.commons.lang3.RandomStringUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.cursed.auth.clients.BrevoEmailClient;
+import com.cursed.auth.constants.FileUpload;
 import com.cursed.auth.constants.MinIO;
 import com.cursed.auth.constants.RedisKeys;
 import com.cursed.auth.dtos.RegisterDto;
@@ -108,6 +110,11 @@ public class UserServiceImpl implements UserService {
 
 	@Override
 	public BaseResponseDTO<String> uploadUserProfile(String email, MultipartFile profileImage) {
+		String error = validateProfileImage(profileImage);
+		if (error != null) {
+			return BaseResponseDTO.<String>builder().success(false)
+					.error(ErrorDTO.builder().message(error).build()).build();
+		}
 		try {
 			String imgUrl = minIOService.upload(profileImage, MinIO.USER_PROFILE_IMAGE_FOLDER);
 			redisService.save(email + RedisKeys.USER_PROFILE_IMAGE, imgUrl);
@@ -116,6 +123,24 @@ public class UserServiceImpl implements UserService {
 			return BaseResponseDTO.<String>builder().success(false)
 					.error(ErrorDTO.builder().message(ex.getMessage()).build()).build();
 		}
+	}
+
+	private String validateProfileImage(MultipartFile file) {
+		if (file == null || file.isEmpty()) {
+			return "No file provided";
+		}
+		if (file.getSize() > FileUpload.MAX_IMAGE_SIZE_BYTES) {
+			return "File exceeds 5MB limit";
+		}
+		String extension = StringUtils.lowerCase(FilenameUtils.getExtension(file.getOriginalFilename()));
+		if (StringUtils.isBlank(extension) || !FileUpload.ALLOWED_IMAGE_EXTENSIONS.contains(extension)) {
+			return "Unsupported file extension";
+		}
+		String contentType = file.getContentType();
+		if (contentType == null || !contentType.startsWith(FileUpload.IMAGE_CONTENT_TYPE_PREFIX)) {
+			return "Invalid file type";
+		}
+		return null;
 	}
 
 	@Override

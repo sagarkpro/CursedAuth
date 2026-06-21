@@ -3,6 +3,7 @@ package com.cursed.auth.services;
 import java.io.IOException;
 import java.util.UUID;
 
+import org.apache.commons.io.FilenameUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -27,9 +28,10 @@ public class MinIOServiceImpl implements MinIOService {
 	@Override
 	public String upload(MultipartFile file, String folder) throws IOException {
 
-		String fileName = file.getOriginalFilename()
+		String fileName = FilenameUtils.getBaseName(file.getOriginalFilename())
 				+ "-"
-				+ UUID.randomUUID().toString().replaceAll("-", "").substring(0, 10);
+				+ UUID.randomUUID().toString().replaceAll("-", "").substring(0, 10)
+				+ "." + FilenameUtils.getExtension(file.getOriginalFilename());
 
 		String key = folder + "/" + fileName;
 
